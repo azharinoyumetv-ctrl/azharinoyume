@@ -1,0 +1,43 @@
+{
+  "nav": {
+    "packages": "料金プラン",
+    "howItWorks": "仕組み",
+    "styleGallery": "スタイルギャラリー",
+    "promptExamples": "プロンプト例",
+    "testimonials": "お客様の声",
+    "faq": "よくある質問",
+    "orderNow": "今すぐ注文",
+    "login": "ログイン",
+    "portal": "注文履歴"
+  },
+  "hero": {
+    "badge": "AI動画編集サービス",
+    "headline": "あなたの映像を、傑作に。",
+    "subheadline": "プロのAI動画編集を世界中にお届け。一度の支払いで、映画品質の仕上がりを。",
+    "cta": "注文を始める",
+    "secondary": "料金を見る",
+    "stats": {
+      "deliveryTime": "平均納期",
+      "deliveryValue": "2〜8時間",
+      "satisfaction": "満足度",
+      "satisfactionValue": "100%",
+      "formats": "フォーマット",
+      "formatsValue": "主要全形式"
+    }
+  },
+  "packages": {
+    "title": "プランを選択",
+    "subtitle": "一回払い。サブスクなし。隠れた手数料なし。",
+    "basic": { "name": "ベーシック", "tagline": "短尺コンテンツに最適", "duration": "最大60秒", "bestFor": "TikTok · リール · ショート" },
+    "plus": { "name": "プラス", "tagline": "YouTube・ビジネス動画に最適", "duration": "最大4分", "bestFor": "YouTube · プロモ · ポッドキャスト" },
+    "premium": { "name": "プレミアム", "tagline": "本格的なプロ制作", "duration": "最大10分", "bestFor": "講座 · 長尺 · ブランド" },
+    "orderNow": "今すぐ注文",
+    "included": "含む",
+    "revisions": "回修正",
+    "revisions_plural": "回修正"
+  },
+  "order": { "title": "注文を作成", "subtitle": "ご希望を入力するとAIが残りを処理します。", "steps": { "package": "プラン", "style": "スタイル", "technical": "テクニカル", "upload": "アップロード", "prompt": "プロンプト", "payment": "支払い" }, "purpose": "目的・イベントタイプ", "visualStyle": "ビジュアルスタイル", "mood": "雰囲気", "editingPace": "編集ペース", "colorGrade": "カラーグレード", "captionStyle": "字幕", "musicStyle": "音楽", "platform": "プラットフォーム", "aspectRatio": "アスペクト比", "resolution": "解像度", "frameRate": "フレームレート", "exportFormat": "書き出し形式", "compression": "圧縮設定", "uploadFile": "映像をアップロード", "orCloudLink": "またはクラウドリンクを貼り付け", "customerNotes": "追加の指示", "generatedPrompt": "AI生成編集プロンプト", "editPrompt": "注文前に編集できます。", "regenerate": "再生成", "addOns": "オプション追加", "paymentMethod": "支払い方法", "invoiceDetails": "請求情報", "placeOrder": "注文して支払う", "total": "合計" },
+  "status": { "title": "注文状況", "steps": { "payment_confirmed": "支払い確認済み", "upload_received": "アップロード受信", "brief_generated": "ブリーフ生成済み", "in_queue": "待機中", "editing_started": "編集開始", "captions_processing": "字幕処理中", "rendering_draft": "ドラフトレンダリング中", "quality_check": "品質チェック", "draft_ready": "ドラフト完成", "revision": "修正", "delivered": "納品済み" }, "eta": "完成予定", "queuePosition": "待機順位", "approveDraft": "承認して最終版をリクエスト", "requestRevision": "修正をリクエスト", "downloadFinal": "最終動画をダウンロード" },
+  "footer": { "tagline": "プレミアムAI動画編集を世界中へ。", "support": "サポート", "legal": "法的情報", "privacyPolicy": "プライバシーポリシー", "terms": "利用規約" },
+  "common": { "loading": "読み込み中...", "error": "エラーが発生しました", "retry": "再試行", "cancel": "キャンセル", "save": "保存", "submit": "送信", "back": "戻る", "next": "次へ", "close": "閉じる" }
+}

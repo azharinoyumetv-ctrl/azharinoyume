@@ -1,0 +1,65 @@
+{
+  "name": "03 — Job Scanner (Every 4 Hours)",
+  "description": "Fetches public RSS job feeds, scores leads with Claude Haiku, drafts proposals for high-score leads. Admin must manually submit any proposals.",
+  "trigger": "Schedule: every 4 hours",
+  "nodes": [
+    {
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "parameters": { "rule": { "interval": [{ "field": "hours", "hoursInterval": 4 }] } }
+    },
+    {
+      "name": "Fetch Upwork RSS",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "parameters": { "url": "https://www.upwork.com/ab/feed/jobs/rss?q=video+editing&sort=recency" }
+    },
+    {
+      "name": "Fetch Indeed RSS",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "parameters": { "url": "https://www.indeed.com/rss?q=video+editor&l=remote" }
+    },
+    {
+      "name": "Fetch Remote.co RSS",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "parameters": { "url": "https://remote.co/remote-jobs/design/feed/" }
+    },
+    {
+      "name": "Merge All Feeds",
+      "type": "n8n-nodes-base.merge",
+      "parameters": { "mode": "append" }
+    },
+    {
+      "name": "Score Each Lead (Claude Haiku)",
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "url": "={{ $env.APP_URL }}/api/n8n/score-lead",
+        "method": "POST",
+        "body": "={{ JSON.stringify({ title: $json.title, description: $json.content, link: $json.link }) }}"
+      }
+    },
+    {
+      "name": "IF: Score >= 65",
+      "type": "n8n-nodes-base.if",
+      "parameters": { "condition": "={{ $json.score >= 65 }}" }
+    },
+    {
+      "name": "Save Lead + Proposal to DB",
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "url": "={{ $env.APP_URL }}/api/n8n/save-lead",
+        "method": "POST",
+        "body": "={{ JSON.stringify({ title: $json.title, description: $json.description, sourceUrl: $json.link, score: $json.score, breakdown: $json.breakdown, proposalDraft: $json.proposal }) }}"
+      }
+    },
+    {
+      "name": "Discard Low Score Lead",
+      "type": "n8n-nodes-base.noOp",
+      "notes": "Lead scored < 65. Not shown in dashboard."
+    }
+  ],
+  "important_notes": [
+    "Only reads public RSS feeds — no scraping, no fake activity, no unauthorized API access.",
+    "Proposals are DRAFTS only. Admin must read, edit, and manually submit.",
+    "Never auto-submit to any platform."
+  ]
+}

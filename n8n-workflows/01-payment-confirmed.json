@@ -1,0 +1,108 @@
+{
+  "name": "01 — Payment Confirmed → Start Processing",
+  "description": "Triggered when payment webhook confirms. Guards against unpaid orders. Starts full video processing pipeline.",
+  "nodes": [
+    {
+      "name": "Webhook: Payment Confirmed",
+      "type": "n8n-nodes-base.webhook",
+      "parameters": {
+        "path": "payment-confirmed",
+        "httpMethod": "POST",
+        "authentication": "headerAuth",
+        "headerName": "x-n8n-secret",
+        "headerValue": "={{ $env.N8N_WEBHOOK_SECRET }}"
+      }
+    },
+    {
+      "name": "Guard: Verify Invoice Paid",
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "url": "={{ $env.APP_URL }}/api/n8n/verify-payment",
+        "method": "POST",
+        "body": "={{ JSON.stringify({ orderId: $json.orderId }) }}"
+      }
+    },
+    {
+      "name": "IF: Payment Valid",
+      "type": "n8n-nodes-base.if",
+      "parameters": {
+        "condition": "={{ $json.valid === true && $json.adminApproved !== false }}"
+      }
+    },
+    {
+      "name": "Stop: Invalid Payment",
+      "type": "n8n-nodes-base.noOp",
+      "notes": "Order stays in manual_review_required or unpaid state. No processing starts."
+    },
+    {
+      "name": "Update Order: processing",
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "url": "={{ $env.APP_URL }}/api/n8n/update-order-status",
+        "method": "POST",
+        "body": "={{ JSON.stringify({ orderId: $json.orderId, status: 'processing' }) }}"
+      }
+    },
+    {
+      "name": "Store Uploaded Files in R2",
+      "type": "n8n-nodes-base.httpRequest",
+      "notes": "Files already uploaded directly to R2 via signed URL. Just validate they exist.",
+      "parameters": {
+        "url": "={{ $env.APP_URL }}/api/n8n/validate-uploads",
+        "method": "POST",
+        "body": "={{ JSON.stringify({ orderId: $json.orderId }) }}"
+      }
+    },
+    {
+      "name": "Detect Language",
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "url": "={{ $env.APP_URL }}/api/n8n/detect-language",
+        "method": "POST",
+        "body": "={{ JSON.stringify({ orderId: $json.orderId }) }}"
+      }
+    },
+    {
+      "name": "IF: Non-English",
+      "type": "n8n-nodes-base.if",
+      "parameters": { "condition": "={{ $json.language !== 'en' }}" }
+    },
+    {
+      "name": "Translate to English (DeepL)",
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "url": "={{ $env.APP_URL }}/api/n8n/translate",
+        "method": "POST",
+        "body": "={{ JSON.stringify({ orderId: $json.orderId, sourceLang: $json.language }) }}"
+      }
+    },
+    {
+      "name": "Generate Edit Brief (Claude Haiku)",
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "url": "={{ $env.APP_URL }}/api/n8n/generate-brief",
+        "method": "POST",
+        "body": "={{ JSON.stringify({ orderId: $json.orderId }) }}"
+      }
+    },
+    {
+      "name": "Send Email: Editing Started",
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "url": "={{ $env.APP_URL }}/api/n8n/send-email",
+        "method": "POST",
+        "body": "={{ JSON.stringify({ orderId: $json.orderId, type: 'editing_started' }) }}"
+      }
+    },
+    {
+      "name": "Add to Render Queue",
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "url": "={{ $env.APP_URL }}/api/n8n/queue-render",
+        "method": "POST",
+        "body": "={{ JSON.stringify({ orderId: $json.orderId, renderType: 'draft' }) }}"
+      }
+    }
+  ],
+  "notes": "CRITICAL: Guard node at step 2 must pass before any processing begins. If invoice.status != paid, workflow stops immediately. If order.manualReviewRequired = true and adminApproved = false, workflow stops."
+}

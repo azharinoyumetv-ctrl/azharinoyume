@@ -1,0 +1,129 @@
+{
+  "nav": {
+    "packages": "Packages",
+    "howItWorks": "How It Works",
+    "styleGallery": "Style Gallery",
+    "promptExamples": "Prompt Examples",
+    "testimonials": "Testimonials",
+    "faq": "FAQ",
+    "orderNow": "Order Now",
+    "login": "Login",
+    "portal": "My Orders"
+  },
+  "hero": {
+    "badge": "AI-Powered Video Editing",
+    "headline": "Your footage. Transformed.",
+    "subheadline": "Professional AI video editing delivered worldwide. Pay once, receive cinematic quality.",
+    "cta": "Start Your Order",
+    "secondary": "View Packages",
+    "stats": {
+      "deliveryTime": "Avg. Delivery",
+      "deliveryValue": "2–8 hours",
+      "satisfaction": "Satisfaction",
+      "satisfactionValue": "100%",
+      "formats": "Formats",
+      "formatsValue": "All major"
+    }
+  },
+  "packages": {
+    "title": "Choose Your Package",
+    "subtitle": "One-time payment. No subscriptions. No hidden fees.",
+    "basic": {
+      "name": "Basic",
+      "tagline": "Perfect for short-form content",
+      "duration": "Up to 60 seconds",
+      "bestFor": "TikTok · Reels · Shorts"
+    },
+    "plus": {
+      "name": "Plus",
+      "tagline": "Ideal for YouTube and business videos",
+      "duration": "Up to 4 minutes",
+      "bestFor": "YouTube · Promos · Podcasts"
+    },
+    "premium": {
+      "name": "Premium",
+      "tagline": "Full professional production",
+      "duration": "Up to 10 minutes",
+      "bestFor": "Courses · Full videos · Brands"
+    },
+    "orderNow": "Order Now",
+    "included": "Included",
+    "revisions": "revision",
+    "revisions_plural": "revisions"
+  },
+  "order": {
+    "title": "Create Your Order",
+    "subtitle": "Fill in your preferences and our AI will handle the rest.",
+    "steps": {
+      "package": "Package",
+      "style": "Style",
+      "technical": "Technical",
+      "upload": "Upload",
+      "prompt": "Prompt",
+      "payment": "Payment"
+    },
+    "purpose": "Purpose / Event Type",
+    "visualStyle": "Visual Style",
+    "mood": "Mood",
+    "editingPace": "Editing Pace",
+    "colorGrade": "Color Grade",
+    "captionStyle": "Captions",
+    "musicStyle": "Music",
+    "platform": "Platform / Destination",
+    "aspectRatio": "Aspect Ratio",
+    "resolution": "Resolution",
+    "frameRate": "Frame Rate",
+    "exportFormat": "Export Format",
+    "compression": "Compression",
+    "uploadFile": "Upload Your Footage",
+    "orCloudLink": "Or paste a cloud link (Google Drive, Dropbox, WeTransfer)",
+    "customerNotes": "Additional Instructions",
+    "generatedPrompt": "Your AI-Generated Editing Prompt",
+    "editPrompt": "You can edit this prompt before placing your order.",
+    "regenerate": "Regenerate Prompt",
+    "addOns": "Add-Ons",
+    "paymentMethod": "Payment Method",
+    "invoiceDetails": "Invoice Details",
+    "placeOrder": "Place Order & Pay",
+    "total": "Total"
+  },
+  "status": {
+    "title": "Order Status",
+    "steps": {
+      "payment_confirmed": "Payment Confirmed",
+      "upload_received": "Upload Received",
+      "brief_generated": "Brief Generated",
+      "in_queue": "In Queue",
+      "editing_started": "Editing Started",
+      "captions_processing": "Captions Processing",
+      "rendering_draft": "Rendering Draft",
+      "quality_check": "Quality Check",
+      "draft_ready": "Draft Ready",
+      "revision": "Revision",
+      "delivered": "Delivered"
+    },
+    "eta": "Estimated ready",
+    "queuePosition": "Queue position",
+    "approveDraft": "Approve & Request Final",
+    "requestRevision": "Request Revision",
+    "downloadFinal": "Download Final Video"
+  },
+  "footer": {
+    "tagline": "Premium AI video editing, delivered worldwide.",
+    "support": "Support",
+    "legal": "Legal",
+    "privacyPolicy": "Privacy Policy",
+    "terms": "Terms of Service"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Something went wrong",
+    "retry": "Try Again",
+    "cancel": "Cancel",
+    "save": "Save",
+    "submit": "Submit",
+    "back": "Back",
+    "next": "Next",
+    "close": "Close"
+  }
+}

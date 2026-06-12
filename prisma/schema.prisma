@@ -1,0 +1,497 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String   @id @default(uuid())
+  email             String   @unique
+  name              String?
+  role              String   @default("customer")
+  preferredLanguage String   @default("en") @map("preferred_language")
+  totpSecret        String?  @map("totp_secret")
+  totpEnabled       Boolean  @default(false) @map("totp_enabled")
+  passwordHash      String?  @map("password_hash")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  orders          Order[]
+  invoices        Invoice[]
+  testimonials    Testimonial[]
+  adminActions    AdminAction[]
+  adminApprovals  AdminApproval[]
+
+  @@map("users")
+}
+
+model Order {
+  id                    String   @id @default(uuid())
+  orderNumber           String   @unique @map("order_number")
+  userId                String?  @map("user_id")
+  customerEmail         String   @map("customer_email")
+  customerName          String?  @map("customer_name")
+  customerCompany       String?  @map("customer_company")
+  package               String
+  status                String   @default("draft")
+  purpose               String?
+  visualStyle           String?  @map("visual_style")
+  mood                  String?
+  editingPace           String?  @map("editing_pace")
+  colorGrade            String?  @map("color_grade")
+  captionStyle          String?  @map("caption_style")
+  musicStyle            String?  @map("music_style")
+  platform              String?
+  aspectRatio           String?  @map("aspect_ratio")
+  resolution            String   @default("1080p")
+  frameRate             String   @default("30fps") @map("frame_rate")
+  exportFormat          String   @default("MP4") @map("export_format")
+  compression           String   @default("balanced")
+  customerPromptOriginal String? @map("customer_prompt_original")
+  customerPromptLanguage String? @map("customer_prompt_language")
+  customerPromptEn      String?  @map("customer_prompt_en")
+  addOns                Json     @default("[]") @map("add_ons")
+  totalPrice            Decimal  @map("total_price") @db.Decimal(10, 2)
+  currency              String   @default("USD")
+  manualReviewRequired  Boolean  @default(false) @map("manual_review_required")
+  adminApproved         Boolean  @default(false) @map("admin_approved")
+  queuePosition         Int?     @map("queue_position")
+  revisionCount         Int      @default(0) @map("revision_count")
+  maxRevisions          Int      @default(1) @map("max_revisions")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  user             User?            @relation(fields: [userId], references: [id])
+  invoices         Invoice[]
+  uploadedAssets   UploadedAsset[]
+  r2Files          R2File[]
+  editBriefs       EditBrief[]
+  renders          Render[]
+  revisions        Revision[]
+  deliveryLinks    DeliveryLink[]
+  costLogs         CostLog[]
+  aiUsageLogs      AiUsageLog[]
+  renderCostLogs   RenderCostLog[]
+  storageCostLogs  StorageCostLog[]
+  ledgerEntries    LedgerEntry[]
+  profitReport     ProfitReport?
+  queueJobs        QueueJob[]
+  paymentTransactions PaymentTransaction[]
+
+  @@map("orders")
+}
+
+model Invoice {
+  id               String    @id @default(uuid())
+  invoiceNumber    String    @unique @map("invoice_number")
+  orderId          String    @map("order_id")
+  userId           String?   @map("user_id")
+  status           String    @default("draft")
+  subtotal         Decimal   @db.Decimal(10, 2)
+  discount         Decimal   @default(0) @db.Decimal(10, 2)
+  total            Decimal   @db.Decimal(10, 2)
+  currency         String    @default("USD")
+  paymentMethod    String?   @map("payment_method")
+  paymentReference String?   @map("payment_reference")
+  paidAmount       Decimal?  @map("paid_amount") @db.Decimal(10, 2)
+  paidAt           DateTime? @map("paid_at")
+  issuedAt         DateTime  @default(now()) @map("issued_at")
+  expiresAt        DateTime? @map("expires_at")
+  deliveryStatus   String    @default("pending") @map("delivery_status")
+  pdfR2Key         String?   @map("pdf_r2_key")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  order        Order          @relation(fields: [orderId], references: [id])
+  user         User?          @relation(fields: [userId], references: [id])
+  items        InvoiceItem[]
+  transactions PaymentTransaction[]
+  reconciliations PaymentReconciliation[]
+  refunds      Refund[]
+  ledgerEntries LedgerEntry[]
+
+  @@map("invoices")
+}
+
+model InvoiceItem {
+  id          String  @id @default(uuid())
+  invoiceId   String  @map("invoice_id")
+  description String
+  quantity    Int     @default(1)
+  unitPrice   Decimal @map("unit_price") @db.Decimal(10, 2)
+  total       Decimal @db.Decimal(10, 2)
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id])
+
+  @@map("invoice_items")
+}
+
+model PaymentProvider {
+  id       String  @id @default(uuid())
+  name     String  @unique
+  enabled  Boolean @default(false)
+  mode     String  @default("auto")
+  regions  Json    @default("[]")
+  config   Json    @default("{}")
+
+  @@map("payment_providers")
+}
+
+model PaymentTransaction {
+  id                  String    @id @default(uuid())
+  invoiceId           String    @map("invoice_id")
+  orderId             String    @map("order_id")
+  provider            String
+  gatewayTransactionId String?  @unique @map("gateway_transaction_id")
+  amount              Decimal   @db.Decimal(10, 2)
+  currency            String
+  status              String
+  rawWebhook          Json?     @map("raw_webhook")
+  adminApprovedBy     String?   @map("admin_approved_by")
+  createdAt           DateTime  @default(now()) @map("created_at")
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id])
+  order   Order   @relation(fields: [orderId], references: [id])
+  reconciliation PaymentReconciliation?
+
+  @@map("payment_transactions")
+}
+
+model PaymentGatewayEvent {
+  id          String   @id @default(uuid())
+  provider    String
+  eventType   String   @map("event_type")
+  rawPayload  Json     @map("raw_payload")
+  processed   Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("payment_gateway_events")
+}
+
+model PaymentReconciliation {
+  id                String   @id @default(uuid())
+  transactionId     String   @unique @map("transaction_id")
+  invoiceId         String   @map("invoice_id")
+  reconciled        Boolean  @default(false)
+  discrepancyAmount Decimal  @default(0) @map("discrepancy_amount") @db.Decimal(10, 2)
+  notes             String?
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  transaction PaymentTransaction @relation(fields: [transactionId], references: [id])
+  invoice     Invoice            @relation(fields: [invoiceId], references: [id])
+
+  @@map("payment_reconciliation")
+}
+
+model Refund {
+  id        String   @id @default(uuid())
+  invoiceId String   @map("invoice_id")
+  amount    Decimal  @db.Decimal(10, 2)
+  currency  String
+  reason    String?
+  status    String   @default("pending")
+  adminId   String?  @map("admin_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id])
+
+  @@map("refunds")
+}
+
+model UploadedAsset {
+  id          String   @id @default(uuid())
+  orderId     String   @map("order_id")
+  r2Key       String   @map("r2_key")
+  fileName    String?  @map("file_name")
+  fileSizeBytes BigInt? @map("file_size_bytes")
+  mimeType    String?  @map("mime_type")
+  assetType   String   @map("asset_type")
+  cloudUrl    String?  @map("cloud_url")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@map("uploaded_assets")
+}
+
+model R2File {
+  id               String    @id @default(uuid())
+  orderId          String?   @map("order_id")
+  r2Key            String    @map("r2_key")
+  fileType         String    @map("file_type")
+  signedUrl        String?   @map("signed_url")
+  signedUrlExpires DateTime? @map("signed_url_expires")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  order Order? @relation(fields: [orderId], references: [id])
+
+  @@map("r2_files")
+}
+
+model EditBrief {
+  id               String   @id @default(uuid())
+  orderId          String   @map("order_id")
+  promptOriginal   String?  @map("prompt_original")
+  promptLanguage   String?  @map("prompt_language")
+  promptEn         String?  @map("prompt_en")
+  structuredBrief  Json?    @map("structured_brief")
+  r2Key            String?  @map("r2_key")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@map("edit_briefs")
+}
+
+model Render {
+  id              String    @id @default(uuid())
+  orderId         String    @map("order_id")
+  renderType      String    @map("render_type")
+  status          String    @default("queued")
+  worker          String?
+  startedAt       DateTime? @map("started_at")
+  completedAt     DateTime? @map("completed_at")
+  durationSeconds Int?      @map("duration_seconds")
+  outputR2Key     String?   @map("output_r2_key")
+  errorLog        String?   @map("error_log")
+
+  order          Order          @relation(fields: [orderId], references: [id])
+  renderCostLogs RenderCostLog[]
+
+  @@map("renders")
+}
+
+model Revision {
+  id             String   @id @default(uuid())
+  orderId        String   @map("order_id")
+  revisionNumber Int      @map("revision_number")
+  customerNotes  String?  @map("customer_notes")
+  status         String   @default("requested")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@map("revisions")
+}
+
+model DeliveryLink {
+  id           String    @id @default(uuid())
+  orderId      String    @map("order_id")
+  r2Key        String?   @map("r2_key")
+  signedUrl    String?   @map("signed_url")
+  expiresAt    DateTime? @map("expires_at")
+  downloadedAt DateTime? @map("downloaded_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@map("delivery_links")
+}
+
+model CostLog {
+  id          String   @id @default(uuid())
+  orderId     String   @map("order_id")
+  costType    String   @map("cost_type")
+  amount      Decimal  @db.Decimal(10, 4)
+  currency    String   @default("USD")
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@map("cost_logs")
+}
+
+model AiUsageLog {
+  id           String   @id @default(uuid())
+  orderId      String?  @map("order_id")
+  model        String
+  purpose      String
+  inputTokens  Int      @map("input_tokens")
+  outputTokens Int      @map("output_tokens")
+  costUsd      Decimal  @map("cost_usd") @db.Decimal(10, 6)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  order Order? @relation(fields: [orderId], references: [id])
+
+  @@map("ai_usage_logs")
+}
+
+model RenderCostLog {
+  id                  String   @id @default(uuid())
+  renderId            String   @map("render_id")
+  orderId             String   @map("order_id")
+  worker              String
+  durationSeconds     Int?     @map("duration_seconds")
+  estimatedCostUsd    Decimal  @map("estimated_cost_usd") @db.Decimal(10, 4)
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  render Render @relation(fields: [renderId], references: [id])
+  order  Order  @relation(fields: [orderId], references: [id])
+
+  @@map("render_cost_logs")
+}
+
+model StorageCostLog {
+  id                   String   @id @default(uuid())
+  orderId              String   @map("order_id")
+  r2GbStored           Decimal  @map("r2_gb_stored") @db.Decimal(10, 4)
+  estimatedMonthlyCost Decimal  @map("estimated_monthly_cost_usd") @db.Decimal(10, 4)
+  recordedAt           DateTime @default(now()) @map("recorded_at")
+
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@map("storage_cost_logs")
+}
+
+model LedgerEntry {
+  id          String   @id @default(uuid())
+  orderId     String?  @map("order_id")
+  invoiceId   String?  @map("invoice_id")
+  entryType   String   @map("entry_type")
+  amount      Decimal  @db.Decimal(10, 2)
+  currency    String   @default("USD")
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  order   Order?   @relation(fields: [orderId], references: [id])
+  invoice Invoice? @relation(fields: [invoiceId], references: [id])
+
+  @@map("ledger_entries")
+}
+
+model ProfitReport {
+  id               String   @id @default(uuid())
+  orderId          String   @unique @map("order_id")
+  grossRevenue     Decimal  @map("gross_revenue") @db.Decimal(10, 2)
+  gatewayFee       Decimal  @map("gateway_fee") @db.Decimal(10, 2)
+  netReceived      Decimal  @map("net_received") @db.Decimal(10, 2)
+  aiCost           Decimal  @map("ai_cost") @db.Decimal(10, 4)
+  renderCost       Decimal  @map("render_cost") @db.Decimal(10, 4)
+  storageCost      Decimal  @map("storage_cost") @db.Decimal(10, 4)
+  revisionCost     Decimal  @map("revision_cost") @db.Decimal(10, 4)
+  totalDirectCost  Decimal  @map("total_direct_cost") @db.Decimal(10, 4)
+  grossProfit      Decimal  @map("gross_profit") @db.Decimal(10, 2)
+  profitMargin     Decimal  @map("profit_margin") @db.Decimal(5, 2)
+  costCapUsedPct   Decimal  @map("cost_cap_used_pct") @db.Decimal(5, 2)
+  calculatedAt     DateTime @default(now()) @map("calculated_at")
+
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@map("profit_reports")
+}
+
+model AccountingExport {
+  id          String   @id @default(uuid())
+  exportType  String   @map("export_type")
+  periodStart DateTime @map("period_start") @db.Date
+  periodEnd   DateTime @map("period_end") @db.Date
+  r2Key       String?  @map("r2_key")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("accounting_exports")
+}
+
+model QueueJob {
+  id          String    @id @default(uuid())
+  orderId     String    @map("order_id")
+  jobType     String    @map("job_type")
+  status      String    @default("pending")
+  priority    Int       @default(0)
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(3) @map("max_attempts")
+  error       String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@map("queue_jobs")
+}
+
+model JobLead {
+  id              String   @id @default(uuid())
+  source          String
+  sourceUrl       String?  @map("source_url")
+  title           String
+  description     String?
+  budgetMin       Decimal? @map("budget_min") @db.Decimal(10, 2)
+  budgetMax       Decimal? @map("budget_max") @db.Decimal(10, 2)
+  currency        String?
+  deadline        String?
+  score           Decimal? @db.Decimal(5, 2)
+  scoreBreakdown  Json?    @map("score_breakdown")
+  pipelineStatus  String   @default("new_lead") @map("pipeline_status")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  proposals ProposalDraft[]
+
+  @@map("job_leads")
+}
+
+model ProposalDraft {
+  id              String    @id @default(uuid())
+  jobLeadId       String    @map("job_lead_id")
+  draftText       String?   @map("draft_text")
+  aiModel         String?   @map("ai_model")
+  adminEditedText String?   @map("admin_edited_text")
+  status          String    @default("draft")
+  adminId         String?   @map("admin_id")
+  submittedAt     DateTime? @map("submitted_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  jobLead JobLead @relation(fields: [jobLeadId], references: [id])
+
+  @@map("proposal_drafts")
+}
+
+model Testimonial {
+  id                 String   @id @default(uuid())
+  orderId            String   @map("order_id")
+  userId             String?  @map("user_id")
+  reviewText         String?  @map("review_text")
+  consentShowVideo   Boolean  @default(false) @map("consent_show_video")
+  consentShowPrompt  Boolean  @default(false) @map("consent_show_prompt")
+  consentHideName    Boolean  @default(false) @map("consent_hide_name")
+  consentHideBrand   Boolean  @default(false) @map("consent_hide_brand")
+  status             String   @default("pending")
+  published          Boolean  @default(false)
+  showcaseR2Key      String?  @map("showcase_r2_key")
+  adminId            String?  @map("admin_id")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("testimonials")
+}
+
+model AdminAction {
+  id         String   @id @default(uuid())
+  adminId    String   @map("admin_id")
+  action     String
+  targetType String   @map("target_type")
+  targetId   String?  @map("target_id")
+  notes      String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  admin User @relation(fields: [adminId], references: [id])
+
+  @@map("admin_actions")
+}
+
+model AdminApproval {
+  id           String   @id @default(uuid())
+  approvalType String   @map("approval_type")
+  targetId     String   @map("target_id")
+  adminId      String   @map("admin_id")
+  decision     String
+  notes        String?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  admin User @relation(fields: [adminId], references: [id])
+
+  @@map("admin_approvals")
+}

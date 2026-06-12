@@ -1,0 +1,106 @@
+{
+  "name": "02 — Render Complete → Notify Customer",
+  "description": "Triggered by render worker when draft or final render is complete.",
+  "nodes": [
+    {
+      "name": "Webhook: Render Complete",
+      "type": "n8n-nodes-base.webhook",
+      "parameters": {
+        "path": "render-complete",
+        "httpMethod": "POST",
+        "authentication": "headerAuth"
+      }
+    },
+    {
+      "name": "IF: Draft or Final",
+      "type": "n8n-nodes-base.if",
+      "parameters": { "condition": "={{ $json.renderType === 'draft' }}" }
+    },
+    {
+      "name": "Draft: Update Status to draft_ready",
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "url": "={{ $env.APP_URL }}/api/n8n/update-order-status",
+        "method": "POST",
+        "body": "={{ JSON.stringify({ orderId: $json.orderId, status: 'draft_ready' }) }}"
+      }
+    },
+    {
+      "name": "Draft: Generate Signed URL (48h)",
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "url": "={{ $env.APP_URL }}/api/n8n/generate-signed-url",
+        "method": "POST",
+        "body": "={{ JSON.stringify({ orderId: $json.orderId, fileType: 'draft', expiresSeconds: 172800 }) }}"
+      }
+    },
+    {
+      "name": "Draft: Send Email: Draft Ready",
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "url": "={{ $env.APP_URL }}/api/n8n/send-email",
+        "method": "POST",
+        "body": "={{ JSON.stringify({ orderId: $json.orderId, type: 'draft_ready', signedUrl: $json.signedUrl }) }}"
+      }
+    },
+    {
+      "name": "Final: Update Status to delivered",
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "url": "={{ $env.APP_URL }}/api/n8n/update-order-status",
+        "method": "POST",
+        "body": "={{ JSON.stringify({ orderId: $json.orderId, status: 'delivered' }) }}"
+      }
+    },
+    {
+      "name": "Final: Generate Signed URL (7 days)",
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "url": "={{ $env.APP_URL }}/api/n8n/generate-signed-url",
+        "method": "POST",
+        "body": "={{ JSON.stringify({ orderId: $json.orderId, fileType: 'final', expiresSeconds: 604800 }) }}"
+      }
+    },
+    {
+      "name": "Final: Create DeliveryLink record",
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "url": "={{ $env.APP_URL }}/api/n8n/create-delivery-link",
+        "method": "POST",
+        "body": "={{ JSON.stringify({ orderId: $json.orderId, signedUrl: $json.signedUrl }) }}"
+      }
+    },
+    {
+      "name": "Final: Send Email: Final Delivered",
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "url": "={{ $env.APP_URL }}/api/n8n/send-email",
+        "method": "POST",
+        "body": "={{ JSON.stringify({ orderId: $json.orderId, type: 'final_delivered', signedUrl: $json.signedUrl }) }}"
+      }
+    },
+    {
+      "name": "Final: Calculate Profit Report",
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "url": "={{ $env.APP_URL }}/api/n8n/calculate-profit",
+        "method": "POST",
+        "body": "={{ JSON.stringify({ orderId: $json.orderId }) }}"
+      }
+    },
+    {
+      "name": "Final: Schedule Testimonial Request (24h delay)",
+      "type": "n8n-nodes-base.wait",
+      "parameters": { "resume": "timeInterval", "amount": 24, "unit": "hours" }
+    },
+    {
+      "name": "Final: Send Testimonial Request Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "url": "={{ $env.APP_URL }}/api/n8n/send-email",
+        "method": "POST",
+        "body": "={{ JSON.stringify({ orderId: $json.orderId, type: 'testimonial_request' }) }}"
+      }
+    }
+  ]
+}
