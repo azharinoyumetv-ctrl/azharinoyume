@@ -31,7 +31,7 @@ export async function sendOrderConfirmationEmail(to: string, data: {
   </div>
   <a href="${data.statusUrl}" style="display:inline-block;background:#d4a017;color:#000;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:700;margin-bottom:24px;">Track Your Order →</a>
   ${data.invoicePdfUrl ? `<p style="font-size:13px;color:#aaa;"><a href="${data.invoicePdfUrl}" style="color:#d4a017;">Download Invoice PDF</a></p>` : ""}
-  <p style="font-size:12px;color:#666;">Questions? Reply to this email or visit support@azharinoyume.cloud</p>
+  <p style="font-size:12px;color:#666;">Questions? Reply to this email or contact support@azharinoyume.cloud</p>
 </div>`,
   });
 }
@@ -111,7 +111,7 @@ export async function sendTestimonialRequestEmail(to: string, data: {
     html: `
 <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:40px 24px;background:#0a0a0f;color:#fff;">
   <h1 style="color:#d4a017;font-size:24px;margin:0 0 8px;">We'd love your feedback</h1>
-  <p style="color:#aaa;margin:0 0 24px;">Thank you for using Azharinoyume for order <strong>${data.orderNumber}</strong>. If you're happy with the result, we'd love to share it with others (with your permission).</p>
+  <p style="color:#aaa;margin:0 0 24px;">Thank you for using Azyume Cut AI for order <strong>${data.orderNumber}</strong>. If you're happy with the result, we'd love to share it with others (with your permission).</p>
   <a href="${data.reviewUrl}" style="display:inline-block;background:#d4a017;color:#000;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:700;">Leave a Review →</a>
   <p style="font-size:12px;color:#666;margin-top:24px;">This is completely optional. You control what gets shared.</p>
 </div>`,

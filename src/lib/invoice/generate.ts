@@ -131,7 +131,7 @@ export function buildInvoiceHtml(invoice: {
 <body>
 <div class="header">
   <div>
-    <div class="logo">azhari<span>noyume</span></div>
+    <div class="logo">Azyume<span> Cut AI</span></div>
     <div style="font-size:12px;color:#999;margin-top:4px;">AI Video Editing Studio</div>
     <div style="font-size:12px;color:#999;">azharinoyume.cloud</div>
   </div>
@@ -187,7 +187,7 @@ ${isWise ? `
 </div>` : ""}
 
 <div class="footer">
-  <p>Thank you for choosing Azharinoyume AI Video Editing Studio.</p>
+  <p>Thank you for choosing Azyume Cut AI — AI Video Editing Studio.</p>
   <p>Questions? Contact us at support@azharinoyume.cloud</p>
 </div>
 </body>

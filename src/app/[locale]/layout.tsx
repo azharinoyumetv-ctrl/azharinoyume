@@ -9,13 +9,13 @@ import "../globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Azharinoyume — AI Video Editing Studio",
+  title: "Azyume Cut AI — AI Video Editing Studio",
   description: "Premium AI video editing delivered worldwide. Cinematic quality, fast delivery.",
   openGraph: {
-    title: "Azharinoyume — AI Video Editing Studio",
+    title: "Azyume Cut AI — AI Video Editing Studio",
     description: "Premium AI video editing delivered worldwide.",
     url: "https://azharinoyume.cloud",
-    siteName: "Azharinoyume",
+    siteName: "Azyume Cut AI",
     type: "website",
   },
 };

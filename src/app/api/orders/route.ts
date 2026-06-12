@@ -160,7 +160,7 @@ async function createXenditInvoice(invoice: { id: string; total: number; invoice
       body: JSON.stringify({
         external_id: order.id,
         amount: Number(invoice.total),
-        description: `Azharinoyume AI Video Editing — ${order.orderNumber}`,
+        description: `Azyume Cut AI — ${order.orderNumber}`,
         invoice_duration: 86400,
         customer: { given_names: name, email },
         success_redirect_url: `${process.env.NEXT_PUBLIC_APP_URL}/order/${order.id}`,

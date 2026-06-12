@@ -51,7 +51,7 @@ export default function ReviewPage({ params }: { params: { orderId: string } }) 
             onChange={(e) => setForm((f) => ({ ...f, reviewText: e.target.value }))}
             required
             rows={5}
-            placeholder="How was your experience with Azharinoyume AI Video Editing?"
+            placeholder="How was your experience with Azyume Cut AI?"
             className="w-full px-4 py-3 glass border border-white/10 rounded-xl text-sm focus:border-gold-500/50 focus:outline-none resize-none"
           />
         </div>
