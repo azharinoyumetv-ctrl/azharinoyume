@@ -10,6 +10,8 @@ module.exports = {
       env: {
         NODE_ENV: "production",
         PORT: 3000,
+        NEXTAUTH_URL: process.env.NEXTAUTH_URL,
+        NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
         REDIS_URL: process.env.REDIS_URL || "redis://127.0.0.1:6379/1",
       },
       max_memory_restart: "768M",
