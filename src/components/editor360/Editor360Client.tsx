@@ -3,7 +3,6 @@
 import { createSHA256 } from "hash-wasm";
 import {
   ArrowLeft,
-  Box,
   Check,
   ChevronRight,
   CircleGauge,
@@ -358,8 +357,12 @@ export default function Editor360Client() {
                 <h1 className="truncate text-sm font-bold sm:text-base">
                   360 Reframe Studio
                 </h1>
-                <span className="hidden rounded-full border border-emerald-300/15 bg-emerald-300/8 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[.14em] text-emerald-300 sm:inline">
-                  FFmpeg v360
+                <span className="hidden items-center gap-1.5 rounded-full border border-emerald-300/15 bg-emerald-300/8 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[.14em] text-emerald-300 sm:inline-flex">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-300 opacity-60" />
+                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-300" />
+                  </span>
+                  Interactive preview
                 </span>
               </div>
               <p className="hidden truncate text-[11px] text-white/35 xs:block">
@@ -370,7 +373,7 @@ export default function Editor360Client() {
           <button
             disabled={busy || !file}
             onClick={submitProject}
-            className="gold-gradient flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl px-4 text-sm font-black text-black disabled:opacity-35 sm:px-5"
+            className="gold-gradient flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl px-4 text-sm font-black text-black transition-transform active:scale-[.97] disabled:opacity-35 sm:px-5"
           >
             {busy ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -394,8 +397,10 @@ export default function Editor360Client() {
           <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[.18em] text-white/35">
             <Video className="h-3.5 w-3.5" /> Source media
           </div>
-          <label className="mt-4 flex min-h-32 cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-cyan-300/20 bg-cyan-300/[.035] px-4 text-center transition-colors hover:border-cyan-300/45">
-            <Upload className="h-5 w-5 text-cyan-200" />
+          <label className="group mt-4 flex min-h-32 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl border border-dashed border-cyan-300/20 bg-cyan-300/[.035] px-4 text-center transition-[border-color,background-color,transform] duration-300 hover:-translate-y-0.5 hover:border-cyan-300/45 hover:bg-cyan-300/[.06]">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-cyan-200/15 bg-cyan-200/[.06] transition-transform duration-300 group-hover:-translate-y-1 group-hover:scale-105">
+              <Upload className="h-4 w-4 text-cyan-200" />
+            </span>
             <span className="mt-3 max-w-full truncate text-sm font-semibold">
               {file?.name || "Import 360 video"}
             </span>
@@ -487,10 +492,23 @@ export default function Editor360Client() {
                   onCameraChange={updateCamera}
                 />
               ) : (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-[radial-gradient(circle_at_center,rgba(34,211,238,.08),transparent_55%)] px-6 text-center">
-                  <span className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/[.035]">
-                    <Box className="h-7 w-7 text-white/35" />
-                  </span>
+                <div className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_center,rgba(34,211,238,.10),transparent_57%)] px-6 text-center">
+                  <div
+                    aria-hidden
+                    className="pointer-events-none absolute inset-0 opacity-45 [background-image:linear-gradient(rgba(255,255,255,.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.025)_1px,transparent_1px)] [background-size:2.5rem_2.5rem]"
+                  />
+                  <div
+                    aria-hidden
+                    className="relative h-28 w-28 motion-safe:animate-[sphereDrift_7s_ease-in-out_infinite] sm:h-32 sm:w-32"
+                  >
+                    <span className="absolute inset-0 rounded-full border border-cyan-200/25 shadow-[inset_0_0_34px_rgba(34,211,238,.11),0_0_42px_rgba(34,211,238,.08)]" />
+                    <span className="absolute inset-[8%] rounded-[50%] border border-cyan-100/15 [transform:rotateX(64deg)]" />
+                    <span className="absolute inset-[8%] rounded-[50%] border border-cyan-100/15 [transform:rotateY(64deg)]" />
+                    <span className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-gradient-to-b from-transparent via-cyan-100/25 to-transparent motion-safe:animate-[sphereOrbit_8s_linear_infinite]" />
+                    <span className="absolute left-1/2 top-1/2 flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-2xl border border-cyan-200/20 bg-[#071216]/90 text-cyan-100 shadow-[0_0_26px_rgba(34,211,238,.14)] backdrop-blur">
+                      <Rotate3D className="h-5 w-5" />
+                    </span>
+                  </div>
                   <h2 className="mt-5 text-xl font-bold">
                     Import spherical footage
                   </h2>
@@ -511,12 +529,34 @@ export default function Editor360Client() {
               <div className="pointer-events-none absolute inset-4 rounded-xl border border-white/12" />
             </div>
           </div>
+          <div className="grid grid-cols-4 gap-px border-x border-b border-white/[.07] bg-white/[.07]">
+            {["Import", "Aim", "Keyframe", "Render"].map((step, index) => {
+              const activeStep = file ? 1 : 0;
+              const active = index === activeStep;
+              return (
+                <div
+                  key={step}
+                  className={`relative bg-[#080a0d] px-2 py-3 text-center transition-colors sm:px-3 ${active ? "text-cyan-100" : "text-white/25"}`}
+                >
+                  {active && (
+                    <span className="absolute inset-x-0 top-0 h-px bg-cyan-200 shadow-[0_0_10px_rgba(103,232,249,.5)]" />
+                  )}
+                  <span className="block font-mono text-[8px] opacity-50">
+                    0{index + 1}
+                  </span>
+                  <span className="mt-0.5 block text-[9px] font-black uppercase tracking-[.11em] sm:text-[10px]">
+                    {step}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
           <div className="border-x border-b border-white/[.07] bg-[#0b0d11] p-3 sm:p-4">
             <div className="flex items-center gap-3">
               <button
                 disabled={!file}
                 onClick={togglePlayback}
-                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white text-black disabled:opacity-30"
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white text-black transition-transform hover:scale-105 active:scale-95 disabled:opacity-30 disabled:hover:scale-100"
               >
                 {playing ? (
                   <Pause className="h-4 w-4 fill-current" />
@@ -547,7 +587,7 @@ export default function Editor360Client() {
                   key={`${frame.timeMs}-${index}`}
                   onClick={() => seek(frame.timeMs)}
                   aria-label={`Keyframe at ${formatTime(frame.timeMs)}`}
-                  className="absolute top-1/2 h-4 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-cyan-100 bg-cyan-300 shadow-[0_0_7px_rgba(34,211,238,.5)]"
+                  className="absolute top-1/2 h-4 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-cyan-100 bg-cyan-300 shadow-[0_0_7px_rgba(34,211,238,.5)] transition-transform hover:scale-150"
                   style={{
                     left: `${durationMs ? Math.min(99, Math.max(1, (frame.timeMs / durationMs) * 100)) : 1}%`,
                   }}
@@ -571,7 +611,7 @@ export default function Editor360Client() {
             <button
               onClick={addKeyframe}
               disabled={!file}
-              className="flex min-h-10 items-center gap-1.5 rounded-lg border border-cyan-300/15 bg-cyan-300/[.06] px-2.5 text-[11px] font-bold text-cyan-200 disabled:opacity-30"
+              className="flex min-h-10 items-center gap-1.5 rounded-lg border border-cyan-300/15 bg-cyan-300/[.06] px-2.5 text-[11px] font-bold text-cyan-200 transition-[border-color,background-color,transform] hover:border-cyan-300/35 hover:bg-cyan-300/10 active:scale-[.97] disabled:opacity-30"
             >
               <Plus className="h-3.5 w-3.5" /> Keyframe
             </button>
@@ -587,7 +627,7 @@ export default function Editor360Client() {
             ).map(([key, label, min, max]) => (
               <label
                 key={key}
-                className="rounded-xl border border-white/[.07] bg-black/20 p-3 text-[10px] font-bold uppercase tracking-[.12em] text-white/35"
+                className="rounded-xl border border-white/[.07] bg-black/20 p-3 text-[10px] font-bold uppercase tracking-[.12em] text-white/35 transition-colors hover:border-cyan-200/15"
               >
                 <span className="flex items-center justify-between gap-2">
                   <span>{label}</span>
@@ -618,7 +658,7 @@ export default function Editor360Client() {
                 <button
                   key={ratio}
                   onClick={() => setOutputAspectRatio(ratio)}
-                  className={`min-h-12 rounded-xl border text-xs font-bold ${outputAspectRatio === ratio ? "border-cyan-300/35 bg-cyan-300/10 text-cyan-200" : "border-white/[.07] bg-black/20 text-white/40"}`}
+                  className={`min-h-12 rounded-xl border text-xs font-bold transition-[border-color,background-color,color,transform] hover:-translate-y-0.5 active:translate-y-0 ${outputAspectRatio === ratio ? "border-cyan-300/35 bg-cyan-300/10 text-cyan-200 shadow-[0_0_24px_rgba(34,211,238,.07)]" : "border-white/[.07] bg-black/20 text-white/40 hover:border-white/15 hover:text-white/70"}`}
                 >
                   {ratio}
                 </button>
@@ -634,7 +674,7 @@ export default function Editor360Client() {
                 <button
                   key={key}
                   onClick={() => setTier(key as Tier)}
-                  className={`flex min-h-14 w-full items-center justify-between rounded-xl border px-3 text-left ${tier === key ? "border-amber-300/30 bg-amber-300/[.07]" : "border-white/[.07] bg-black/20"}`}
+                  className={`flex min-h-14 w-full items-center justify-between rounded-xl border px-3 text-left transition-[border-color,background-color,transform] hover:-translate-y-0.5 active:translate-y-0 ${tier === key ? "border-amber-300/30 bg-amber-300/[.07] shadow-[0_0_28px_rgba(245,200,66,.06)]" : "border-white/[.07] bg-black/20 hover:border-white/15"}`}
                 >
                   <span>
                     <span className="block text-sm font-bold">
