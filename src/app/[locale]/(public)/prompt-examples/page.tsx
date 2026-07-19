@@ -47,23 +47,23 @@ const EXAMPLES = [
 
 export default function PromptExamplesPage() {
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-      <div className="text-center mb-16">
-        <h1 className="text-5xl font-black mb-4">Prompt Examples</h1>
-        <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+    <div className="mx-auto max-w-4xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
+      <div className="mb-10 text-center sm:mb-16">
+        <h1 className="mb-4 text-4xl font-black sm:text-5xl">Prompt Examples</h1>
+        <p className="mx-auto max-w-2xl text-base text-muted-foreground sm:text-lg">
           These are example prompts you can use or adapt. The order form generates a prompt automatically from your selections — you just refine it.
         </p>
       </div>
 
       <div className="space-y-6">
         {EXAMPLES.map(({ type, style, prompt, package: pkg }) => (
-          <div key={type} className="glass border border-white/5 rounded-2xl p-8">
-            <div className="flex items-start justify-between gap-4 mb-4">
+          <div key={type} className="glass rounded-2xl border border-white/5 p-5 sm:p-8">
+            <div className="mb-4 flex flex-col items-start justify-between gap-3 min-[480px]:flex-row min-[480px]:gap-4">
               <div>
                 <div className="font-bold text-lg">{type}</div>
                 <div className="text-sm text-muted-foreground mt-0.5">{style}</div>
               </div>
-              <span className="px-3 py-1 rounded-full text-xs font-semibold glass border border-white/10 flex-shrink-0">{pkg}</span>
+              <span className="glass flex min-h-8 flex-shrink-0 items-center rounded-full border border-white/10 px-3 text-xs font-semibold">{pkg}</span>
             </div>
             <div className="bg-white/3 rounded-xl p-4 border border-white/5">
               <p className="text-sm text-muted-foreground leading-relaxed italic">&ldquo;{prompt}&rdquo;</p>
@@ -72,9 +72,9 @@ export default function PromptExamplesPage() {
         ))}
       </div>
 
-      <div className="mt-12 p-6 glass border border-gold-500/20 rounded-2xl text-center">
+      <div className="glass mt-10 rounded-2xl border border-gold-500/20 p-5 text-center sm:mt-12 sm:p-6">
         <p className="text-muted-foreground mb-4">You don&apos;t need to write a perfect prompt. Our order form generates one from your selections.</p>
-        <Link href="/order" className="inline-flex items-center gap-2 px-6 py-3 gold-gradient text-black font-bold rounded-xl">
+        <Link href="/order" className="gold-gradient inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl px-6 font-bold text-black sm:w-auto">
           Start Your Order →
         </Link>
       </div>

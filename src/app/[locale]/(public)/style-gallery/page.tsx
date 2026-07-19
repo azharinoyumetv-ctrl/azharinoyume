@@ -16,30 +16,30 @@ export default async function StyleGalleryPage() {
   });
 
   return (
-    <main className="min-h-screen bg-black text-white px-4 py-12">
+    <main className="min-h-[calc(100svh-4rem-env(safe-area-inset-top))] bg-black px-4 py-10 text-white sm:py-14">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-16">
+        <div className="mb-10 text-center sm:mb-16">
           <h1 className="text-4xl md:text-5xl font-black mb-4">
             Style{" "}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-amber-600">
               Gallery
             </span>
           </h1>
-          <p className="text-muted-foreground text-lg max-w-xl mx-auto">
+          <p className="mx-auto max-w-xl text-base text-muted-foreground sm:text-lg">
             Browse our editing styles and see what customers have said about their videos.
           </p>
         </div>
 
         {/* Style cards */}
-        <div className="mb-20">
+        <div className="mb-14 sm:mb-20">
           <h2 className="text-xl font-bold mb-6">Editing Styles</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4">
             {STYLE_TAGS.map((style) => (
               <Link
                 key={style}
                 href={`/order?style=${style}`}
-                className="glass border border-white/5 hover:border-amber-500/30 rounded-2xl p-6 text-center group transition-all duration-300 hover:scale-105"
+                className="glass group flex min-h-28 flex-col items-center justify-center rounded-2xl border border-white/5 p-4 text-center transition-all duration-300 hover:border-amber-500/30 sm:p-6 md:hover:scale-105"
               >
                 <div className="text-3xl mb-3">{styleEmoji(style)}</div>
                 <div className="font-semibold capitalize group-hover:text-amber-400 transition-colors">
@@ -54,7 +54,7 @@ export default async function StyleGalleryPage() {
         {testimonials.length > 0 && (
           <div>
             <h2 className="text-xl font-bold mb-6">What Clients Say</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">
               {testimonials.map((t) => (
                 <div key={t.id} className="glass border border-white/5 rounded-2xl p-6 flex flex-col gap-4">
                   {t.reviewText && (
@@ -79,10 +79,10 @@ export default async function StyleGalleryPage() {
           </div>
         )}
 
-        <div className="mt-16 text-center">
+        <div className="mt-12 text-center sm:mt-16">
           <Link
             href="/order"
-            className="inline-flex px-8 py-4 bg-gradient-to-r from-amber-500 to-amber-600 text-black font-black rounded-2xl text-lg hover:opacity-90 transition-opacity"
+            className="inline-flex min-h-14 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 px-8 text-base font-black text-black transition-opacity hover:opacity-90 sm:w-auto sm:text-lg"
           >
             Start Your Project
           </Link>

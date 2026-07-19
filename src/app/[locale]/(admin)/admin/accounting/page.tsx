@@ -79,8 +79,8 @@ export default async function AccountingPage() {
         <div className="p-6 border-b border-white/5">
           <h2 className="font-bold">Profit per Order</h2>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="scrollbar-thin overscroll-x overflow-x-auto">
+          <table className="admin-table w-full text-sm">
             <thead className="border-b border-white/5">
               <tr className="text-xs text-muted-foreground uppercase tracking-wider">
                 <th className="px-6 py-4 text-left">Order</th>

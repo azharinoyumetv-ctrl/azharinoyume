@@ -7,38 +7,38 @@ export default function HomePage() {
   return (
     <div className="relative overflow-hidden">
       {/* Hero */}
-      <section className="relative min-h-screen flex items-center justify-center px-4">
+      <section className="relative flex min-h-[calc(100svh-4rem-env(safe-area-inset-top))] items-center justify-center px-4 py-10 sm:py-16">
         {/* Background gradient */}
         <div className="absolute inset-0 bg-gradient-to-br from-violet-900/20 via-background to-background" />
         <div className="absolute top-1/3 left-1/4 w-96 h-96 bg-gold-500/5 rounded-full blur-3xl" />
         <div className="absolute top-1/2 right-1/4 w-64 h-64 bg-violet-500/5 rounded-full blur-3xl" />
 
         <div className="relative max-w-5xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border border-gold-500/20 text-gold-400 text-sm font-medium mb-8">
+          <div className="glass mb-6 inline-flex min-h-10 items-center gap-2 rounded-full border border-gold-500/20 px-3 py-2 text-xs font-medium text-gold-400 sm:mb-8 sm:px-4 sm:text-sm">
             <span className="w-2 h-2 bg-gold-400 rounded-full animate-pulse" />
             {t("hero.badge")}
           </div>
 
-          <h1 className="text-5xl sm:text-7xl lg:text-8xl font-black tracking-tight mb-6">
+          <h1 className="mb-5 text-4xl font-black leading-[1.03] tracking-tight min-[380px]:text-5xl sm:mb-6 sm:text-7xl lg:text-8xl">
             <span className="text-white">{t("hero.headline").split(".")[0]}.</span>
             <br />
             <span className="gold-text">{t("hero.headline").split(".")[1] || ""}</span>
           </h1>
 
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-12 leading-relaxed">
+          <p className="mx-auto mb-8 max-w-2xl text-base leading-relaxed text-muted-foreground sm:mb-12 sm:text-xl">
             {t("hero.subheadline")}
           </p>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
+          <div className="mx-auto mb-10 flex w-full max-w-md flex-col items-stretch justify-center gap-3 sm:mb-16 sm:max-w-none sm:flex-row sm:items-center sm:gap-4">
             <Link
               href="/order"
-              className="flex items-center gap-2 px-8 py-4 gold-gradient text-black font-bold rounded-xl hover:opacity-90 transition-opacity text-lg"
+              className="gold-gradient flex min-h-14 w-full items-center justify-center gap-2 rounded-xl px-6 text-base font-bold text-black transition-opacity hover:opacity-90 sm:w-auto sm:px-8 sm:text-lg"
             >
               {t("hero.cta")} <ArrowRight className="w-5 h-5" />
             </Link>
             <Link
               href="/packages"
-              className="flex items-center gap-2 px-8 py-4 glass border border-white/10 text-white font-semibold rounded-xl hover:border-white/20 transition-all text-lg"
+              className="glass flex min-h-14 w-full items-center justify-center gap-2 rounded-xl border border-white/10 px-6 text-base font-semibold text-white transition-all hover:border-white/20 sm:w-auto sm:px-8 sm:text-lg"
             >
               <Play className="w-4 h-4 text-gold-400" />
               {t("hero.secondary")}
@@ -46,15 +46,15 @@ export default function HomePage() {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-3 gap-6 max-w-lg mx-auto">
+          <div className="mx-auto grid max-w-lg grid-cols-3 gap-2 sm:gap-6">
             {[
               { label: t("hero.stats.deliveryTime"), value: t("hero.stats.deliveryValue") },
               { label: t("hero.stats.satisfaction"), value: t("hero.stats.satisfactionValue") },
               { label: t("hero.stats.formats"), value: t("hero.stats.formatsValue") },
             ].map((stat) => (
-              <div key={stat.label} className="glass rounded-xl p-4 text-center">
-                <div className="text-xl font-black gold-text">{stat.value}</div>
-                <div className="text-xs text-muted-foreground mt-1">{stat.label}</div>
+              <div key={stat.label} className="glass rounded-xl px-2 py-3 text-center sm:p-4">
+                <div className="gold-text text-base font-black sm:text-xl">{stat.value}</div>
+                <div className="mt-1 text-[10px] leading-tight text-muted-foreground sm:text-xs">{stat.label}</div>
               </div>
             ))}
           </div>
@@ -62,9 +62,9 @@ export default function HomePage() {
       </section>
 
       {/* Packages preview */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl font-black mb-4">{t("packages.title")}</h2>
+      <section className="section-spacing page-gutter mx-auto max-w-7xl">
+        <div className="mb-10 text-center sm:mb-16">
+          <h2 className="mb-4 text-3xl font-black sm:text-4xl">{t("packages.title")}</h2>
           <p className="text-muted-foreground">{t("packages.subtitle")}</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -75,7 +75,7 @@ export default function HomePage() {
           ].map(({ key, price, popular, color }) => (
             <div
               key={key}
-              className={`relative glass rounded-2xl p-8 border ${color} ${popular ? "glow-gold" : ""}`}
+              className={`relative glass rounded-2xl p-5 sm:p-8 border ${color} ${popular ? "glow-gold" : ""}`}
             >
               {popular && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 gold-gradient text-black text-xs font-bold rounded-full">
@@ -91,7 +91,7 @@ export default function HomePage() {
               <div className="text-xs text-muted-foreground mb-8">{t(`packages.${key}.bestFor`)}</div>
               <Link
                 href={`/order?package=${key}`}
-                className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all ${
+                className={`flex min-h-12 w-full items-center justify-center gap-2 rounded-xl text-sm font-semibold transition-all ${
                   popular
                     ? "gold-gradient text-black hover:opacity-90"
                     : "glass border border-white/10 hover:border-white/20 text-white"
@@ -105,11 +105,11 @@ export default function HomePage() {
       </section>
 
       {/* How it works */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 border-t border-white/5">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl font-black mb-4">{t("nav.howItWorks")}</h2>
+      <section className="section-spacing page-gutter mx-auto max-w-7xl border-t border-white/5">
+        <div className="mb-10 text-center sm:mb-16">
+          <h2 className="mb-4 text-3xl font-black sm:text-4xl">{t("nav.howItWorks")}</h2>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
           {[
             { step: "01", title: "Choose Package", desc: "Select the right plan and fill out your editing preferences." },
             { step: "02", title: "Pay & Upload", desc: "Pay securely. Processing starts only after payment confirms." },
@@ -128,14 +128,14 @@ export default function HomePage() {
       </section>
 
       {/* Trust section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 border-t border-white/5">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <section className="section-spacing page-gutter mx-auto max-w-7xl border-t border-white/5">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-3 lg:gap-8">
           {[
             { icon: <CheckCircle className="w-6 h-6 text-gold-400" />, title: "Pay first, always", desc: "Your footage is never processed until payment is confirmed. 100% guaranteed." },
             { icon: <Clock className="w-6 h-6 text-gold-400" />, title: "Fast turnaround", desc: "Most orders are delivered within 2–8 hours. Track your queue position live." },
             { icon: <Star className="w-6 h-6 text-gold-400" />, title: "Worldwide delivery", desc: "Accept payments in 50+ countries. Support in 8 languages." },
           ].map(({ icon, title, desc }) => (
-            <div key={title} className="glass rounded-2xl p-8 border border-white/5">
+            <div key={title} className="glass rounded-2xl border border-white/5 p-5 sm:p-8">
               <div className="mb-4">{icon}</div>
               <h3 className="font-bold text-lg mb-2">{title}</h3>
               <p className="text-sm text-muted-foreground">{desc}</p>
@@ -145,10 +145,10 @@ export default function HomePage() {
       </section>
 
       {/* CTA */}
-      <section className="max-w-3xl mx-auto text-center px-4 py-24">
-        <h2 className="text-4xl font-black mb-6">Ready to transform your footage?</h2>
+      <section className="section-spacing mx-auto max-w-3xl px-4 text-center">
+        <h2 className="mb-6 text-3xl font-black sm:text-4xl">Ready to transform your footage?</h2>
         <p className="text-muted-foreground mb-8">Professional AI editing. Delivered fast. Worldwide.</p>
-        <Link href="/order" className="inline-flex items-center gap-2 px-10 py-5 gold-gradient text-black font-bold rounded-xl hover:opacity-90 transition-opacity text-lg">
+        <Link href="/order" className="gold-gradient inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-xl px-8 text-base font-bold text-black transition-opacity hover:opacity-90 sm:w-auto sm:px-10 sm:text-lg">
           {t("hero.cta")} <ArrowRight className="w-5 h-5" />
         </Link>
       </section>

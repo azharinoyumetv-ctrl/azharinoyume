@@ -4,9 +4,9 @@ import { useTranslations } from "next-intl";
 export default function Footer() {
   const t = useTranslations("footer");
   return (
-    <footer className="border-t border-white/5 bg-background/50 mt-24">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
+    <footer className="mt-14 border-t border-white/5 bg-background/50 sm:mt-24">
+      <div className="mx-auto max-w-7xl px-4 pt-10 pb-[max(2.5rem,env(safe-area-inset-bottom))] sm:px-6 sm:pt-16 sm:pb-[max(4rem,env(safe-area-inset-bottom))] lg:px-8">
+        <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 md:grid-cols-4 md:gap-12">
           <div className="md:col-span-2">
             <div className="text-2xl font-black mb-3">
               <span className="gold-text">Azyume</span>
@@ -18,21 +18,21 @@ export default function Footer() {
           <div>
             <div className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-4">{t("support")}</div>
             <div className="space-y-3">
-              <Link href="/faq" className="block text-sm text-muted-foreground hover:text-white transition-colors">FAQ</Link>
-              <Link href="/how-it-works" className="block text-sm text-muted-foreground hover:text-white transition-colors">How It Works</Link>
-              <Link href="/prompt-examples" className="block text-sm text-muted-foreground hover:text-white transition-colors">Prompt Examples</Link>
-              <a href="mailto:support@azharinoyume.cloud" className="block text-sm text-muted-foreground hover:text-white transition-colors">support@azharinoyume.cloud</a>
+              <Link href="/faq" className="flex min-h-11 items-center text-sm text-muted-foreground transition-colors hover:text-white">FAQ</Link>
+              <Link href="/how-it-works" className="flex min-h-11 items-center text-sm text-muted-foreground transition-colors hover:text-white">How It Works</Link>
+              <Link href="/prompt-examples" className="flex min-h-11 items-center text-sm text-muted-foreground transition-colors hover:text-white">Prompt Examples</Link>
+              <a href="mailto:support@azharinoyume.cloud" className="flex min-h-11 items-center break-all text-sm text-muted-foreground transition-colors hover:text-white">support@azharinoyume.cloud</a>
             </div>
           </div>
           <div>
             <div className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-4">{t("legal")}</div>
             <div className="space-y-3">
-              <Link href="/privacy" className="block text-sm text-muted-foreground hover:text-white transition-colors">{t("privacyPolicy")}</Link>
-              <Link href="/terms" className="block text-sm text-muted-foreground hover:text-white transition-colors">{t("terms")}</Link>
+              <Link href="/privacy" className="flex min-h-11 items-center text-sm text-muted-foreground transition-colors hover:text-white">{t("privacyPolicy")}</Link>
+              <Link href="/terms" className="flex min-h-11 items-center text-sm text-muted-foreground transition-colors hover:text-white">{t("terms")}</Link>
             </div>
           </div>
         </div>
-        <div className="mt-12 pt-8 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="mt-10 flex flex-col items-start justify-between gap-2 border-t border-white/5 pt-6 sm:mt-12 sm:flex-row sm:items-center sm:gap-4 sm:pt-8">
           <div className="text-xs text-muted-foreground">© {new Date().getFullYear()} Azyume Cut AI. All rights reserved.</div>
           <div className="text-xs text-muted-foreground">azharinoyume.cloud</div>
         </div>

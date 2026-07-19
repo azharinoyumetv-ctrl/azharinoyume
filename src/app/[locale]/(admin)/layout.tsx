@@ -16,9 +16,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (accessRequired && accessEmail !== session.user.email.toLowerCase()) redirect("/login?error=AccessRequired");
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="dashboard-backdrop flex min-h-[100dvh] bg-background">
       <AdminSidebar />
-      <main className="flex-1 lg:ml-64 p-4 lg:p-8 pb-24 lg:pb-8 min-w-0">{children}</main>
+      <main className="min-w-0 flex-1 px-3 pt-[calc(5rem+env(safe-area-inset-top))] pb-[calc(6.5rem+env(safe-area-inset-bottom))] sm:px-5 min-[900px]:ml-72 min-[900px]:p-7 min-[1200px]:p-9">{children}</main>
     </div>
   );
 }

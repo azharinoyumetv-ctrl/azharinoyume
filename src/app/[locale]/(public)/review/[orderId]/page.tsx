@@ -29,7 +29,7 @@ export default function ReviewPage(props: { params: Promise<{ orderId: string }>
 
   if (submitted) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4">
+      <div className="flex min-h-[calc(100svh-4rem-env(safe-area-inset-top))] items-center justify-center px-4 py-12">
         <div className="text-center max-w-md">
           <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-6" />
           <h1 className="text-3xl font-black mb-4">Thank You!</h1>
@@ -40,8 +40,8 @@ export default function ReviewPage(props: { params: Promise<{ orderId: string }>
   }
 
   return (
-    <div className="max-w-xl mx-auto px-4 py-24">
-      <h1 className="text-3xl font-black mb-2">Leave a Review</h1>
+    <div className="mx-auto max-w-xl px-4 py-14 sm:py-20 lg:py-24">
+      <h1 className="mb-2 text-3xl font-black sm:text-4xl">Leave a Review</h1>
       <p className="text-muted-foreground mb-8">Your feedback is completely optional. You control what we share.</p>
 
       <form onSubmit={submit} className="space-y-6">
@@ -53,7 +53,7 @@ export default function ReviewPage(props: { params: Promise<{ orderId: string }>
             required
             rows={5}
             placeholder="How was your experience with Azyume Cut AI?"
-            className="w-full px-4 py-3 glass border border-white/10 rounded-xl text-sm focus:border-gold-500/50 focus:outline-none resize-none"
+            className="glass w-full resize-none rounded-xl border border-white/10 px-4 py-3 text-base focus:border-gold-500/50 focus:outline-none"
           />
         </div>
 
@@ -65,12 +65,12 @@ export default function ReviewPage(props: { params: Promise<{ orderId: string }>
             { key: "consentHideName", label: "Hide my name (show as Anonymous)" },
             { key: "consentHideBrand", label: "Hide my brand/company name" },
           ].map(({ key, label }) => (
-            <label key={key} className="flex items-center gap-3 cursor-pointer">
+            <label key={key} className="flex min-h-12 cursor-pointer items-center gap-3 rounded-lg px-1">
               <input
                 type="checkbox"
                 checked={form[key as keyof typeof form] as boolean}
                 onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.checked }))}
-                className="rounded"
+                className="h-5 w-5 rounded"
               />
               <span className="text-sm">{label}</span>
             </label>
@@ -80,7 +80,7 @@ export default function ReviewPage(props: { params: Promise<{ orderId: string }>
         <button
           type="submit"
           disabled={loading || !form.reviewText.trim()}
-          className="w-full flex items-center justify-center gap-2 py-4 gold-gradient text-black font-bold rounded-xl disabled:opacity-50"
+          className="gold-gradient flex min-h-14 w-full items-center justify-center gap-2 rounded-xl px-4 py-3 font-bold text-black disabled:opacity-50"
         >
           {loading && <Loader2 className="w-4 h-4 animate-spin" />}
           Submit Review

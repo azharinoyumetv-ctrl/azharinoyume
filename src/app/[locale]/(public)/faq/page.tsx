@@ -18,9 +18,9 @@ const FAQS = [
 
 function FAQItem({ q, a }: { q: string; a: string }) {
   const [open, setOpen] = useState(false);
-  return <div className="glass border border-white/5 rounded-2xl overflow-hidden"><button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between p-6 text-left"><span className="font-medium pr-4">{q}</span><ChevronDown className={cn("w-5 h-5 text-muted-foreground flex-shrink-0 transition-transform", open && "rotate-180")} /></button>{open && <div className="px-6 pb-6 text-muted-foreground text-sm leading-relaxed border-t border-white/5 pt-4">{a}</div>}</div>;
+  return <div className="glass overflow-hidden rounded-2xl border border-white/5"><button onClick={() => setOpen(!open)} aria-expanded={open} className="flex min-h-14 w-full items-center justify-between p-4 text-left sm:p-6"><span className="pr-4 font-medium">{q}</span><ChevronDown className={cn("h-5 w-5 flex-shrink-0 text-muted-foreground transition-transform", open && "rotate-180")} /></button>{open && <div className="border-t border-white/5 px-4 pt-4 pb-5 text-sm leading-relaxed text-muted-foreground sm:px-6 sm:pb-6">{a}</div>}</div>;
 }
 
 export default function FAQPage() {
-  return <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-24"><div className="text-center mb-16"><h1 className="text-5xl font-black mb-4">FAQ</h1><p className="text-muted-foreground">Clear answers about credits, payments, rendering, and privacy.</p></div><div className="space-y-3">{FAQS.map(({ q, a }) => <FAQItem key={q} q={q} a={a} />)}</div></div>;
+  return <div className="mx-auto max-w-3xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8 lg:py-24"><div className="mb-10 text-center sm:mb-16"><h1 className="mb-4 text-4xl font-black sm:text-5xl">FAQ</h1><p className="text-muted-foreground">Clear answers about credits, payments, rendering, and privacy.</p></div><div className="space-y-3">{FAQS.map(({ q, a }) => <FAQItem key={q} q={q} a={a} />)}</div></div>;
 }

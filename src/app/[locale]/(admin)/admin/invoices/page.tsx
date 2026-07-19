@@ -54,8 +54,8 @@ export default async function AdminInvoicesPage(props: { searchParams: Promise<{
       </div>
 
       <div className="glass border border-white/5 rounded-2xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="scrollbar-thin overscroll-x overflow-x-auto">
+          <table className="admin-table w-full text-sm">
             <thead className="border-b border-white/5">
               <tr className="text-xs text-muted-foreground uppercase tracking-wider">
                 <th className="px-6 py-4 text-left">Invoice #</th>

@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useTranslations, useLocale } from "next-intl";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
-import { Menu, X, ChevronDown, Globe } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Menu, X, ChevronDown, Globe, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const LOCALES = [
@@ -26,6 +26,20 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
 
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobileOpen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previous;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [mobileOpen]);
+
   const currentLocale = LOCALES.find((l) => l.code === locale) || LOCALES[0];
 
   function switchLocale(code: string) {
@@ -46,24 +60,24 @@ export default function Navbar() {
   ];
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-white/5">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <nav className="safe-top fixed inset-x-0 top-0 z-50 border-b border-white/5 bg-background/90 backdrop-blur-xl supports-[backdrop-filter]:bg-background/75" aria-label="Primary navigation">
+      <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2">
-            <span className="text-xl font-black tracking-tight">
+          <Link href="/" onClick={() => setMobileOpen(false)} className="flex min-h-12 min-w-0 items-center gap-2 rounded-lg pr-2" aria-label="Azyume Cut AI home">
+            <span className="truncate text-base font-black tracking-tight sm:text-xl">
               <span className="gold-text">Azyume</span>
               <span className="text-white"> Cut AI</span>
             </span>
           </Link>
 
           {/* Desktop nav */}
-          <div className="hidden lg:flex items-center gap-6">
+          <div className="hidden items-center gap-4 min-[960px]:flex xl:gap-6">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                className="text-sm text-muted-foreground hover:text-white transition-colors"
+                className="flex min-h-12 items-center rounded-lg px-1 text-sm text-muted-foreground transition-colors hover:text-white"
               >
                 {link.label}
               </Link>
@@ -71,25 +85,27 @@ export default function Navbar() {
           </div>
 
           {/* Right side */}
-          <div className="flex items-center gap-3">
+          <div className="flex flex-shrink-0 items-center gap-1 sm:gap-2 lg:gap-3">
             {/* Language selector */}
             <div className="relative">
               <button
                 onClick={() => setLangOpen(!langOpen)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:text-white hover:bg-white/5 transition-all"
+                className="touch-target flex items-center justify-center gap-1 rounded-lg px-2 text-sm text-muted-foreground transition-all hover:bg-white/5 hover:text-white sm:gap-1.5 sm:px-3"
+                aria-expanded={langOpen}
+                aria-label={`Change language, current language ${currentLocale.label}`}
               >
                 <Globe className="w-4 h-4" />
                 <span className="hidden sm:inline">{currentLocale.flag} {currentLocale.code.toUpperCase()}</span>
                 <ChevronDown className={cn("w-3 h-3 transition-transform", langOpen && "rotate-180")} />
               </button>
               {langOpen && (
-                <div className="absolute right-0 mt-2 w-48 rounded-xl glass border border-white/10 shadow-2xl overflow-hidden">
+                <div className="scrollbar-thin absolute right-0 mt-2 max-h-[min(28rem,60dvh)] w-[min(12rem,calc(100vw-1.5rem))] overflow-y-auto rounded-xl border border-white/10 bg-card/95 shadow-2xl backdrop-blur-xl">
                   {LOCALES.map((loc) => (
                     <button
                       key={loc.code}
                       onClick={() => switchLocale(loc.code)}
                       className={cn(
-                        "w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-white/5 transition-colors text-left",
+                        "flex min-h-12 w-full items-center gap-3 px-4 text-left text-sm transition-colors hover:bg-white/5",
                         loc.code === locale ? "text-gold-400" : "text-muted-foreground"
                       )}
                     >
@@ -101,18 +117,24 @@ export default function Navbar() {
               )}
             </div>
 
-            <Link href="/login" className="hidden sm:inline-flex text-sm text-muted-foreground hover:text-white transition-colors">
+            <Link href="/login" className="hidden min-h-12 items-center rounded-lg px-2 text-sm text-muted-foreground transition-colors hover:text-white md:inline-flex">
               {t("login")}
             </Link>
             <Link
               href="/order"
-              className="px-4 py-2 rounded-lg gold-gradient text-black text-sm font-bold hover:opacity-90 transition-opacity"
+              className="hidden min-h-12 items-center rounded-lg px-4 text-sm font-bold text-black transition-opacity hover:opacity-90 min-[430px]:inline-flex gold-gradient"
             >
               {t("orderNow")}
             </Link>
 
             {/* Mobile menu button */}
-            <button onClick={() => setMobileOpen(!mobileOpen)} className="lg:hidden p-2 rounded-lg hover:bg-white/5">
+            <button
+              onClick={() => setMobileOpen(!mobileOpen)}
+              className="touch-target flex items-center justify-center rounded-lg hover:bg-white/5 min-[960px]:hidden"
+              aria-expanded={mobileOpen}
+              aria-controls="mobile-navigation"
+              aria-label={mobileOpen ? "Close navigation menu" : "Open navigation menu"}
+            >
               {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
@@ -121,13 +143,21 @@ export default function Navbar() {
 
       {/* Mobile menu */}
       {mobileOpen && (
-        <div className="lg:hidden border-t border-white/5 bg-background/95 backdrop-blur">
-          <div className="px-4 py-4 space-y-1">
+        <div id="mobile-navigation" className="mobile-menu-height safe-bottom overflow-y-auto border-t border-white/5 bg-background/95 backdrop-blur-xl min-[960px]:hidden">
+          <div className="space-y-1 px-3 py-3 sm:px-6">
+            <div className="mb-3 grid grid-cols-2 gap-2">
+              <Link href="/login" onClick={() => setMobileOpen(false)} className="flex min-h-12 items-center justify-center rounded-xl border border-white/10 text-sm font-semibold text-white">
+                {t("login")}
+              </Link>
+              <Link href="/order" onClick={() => setMobileOpen(false)} className="gold-gradient flex min-h-12 items-center justify-center gap-2 rounded-xl text-sm font-bold text-black">
+                {t("orderNow")} <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
             {navLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                className="block px-4 py-3 rounded-lg text-sm text-muted-foreground hover:text-white hover:bg-white/5 transition-all"
+                className="flex min-h-12 items-center rounded-xl px-4 text-sm text-muted-foreground transition-all hover:bg-white/5 hover:text-white"
                 onClick={() => setMobileOpen(false)}
               >
                 {link.label}
@@ -135,7 +165,7 @@ export default function Navbar() {
             ))}
             <Link
               href="/portal"
-              className="block px-4 py-3 rounded-lg text-sm text-muted-foreground hover:text-white hover:bg-white/5 transition-all"
+              className="flex min-h-12 items-center rounded-xl px-4 text-sm text-muted-foreground transition-all hover:bg-white/5 hover:text-white"
               onClick={() => setMobileOpen(false)}
             >
               {t("portal")}

@@ -16,23 +16,23 @@ export default async function TestimonialsPage() {
   const testimonials = await getTestimonials();
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-      <div className="text-center mb-16">
-        <h1 className="text-5xl font-black mb-4">Customer Reviews</h1>
+    <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
+      <div className="mb-10 text-center sm:mb-16">
+        <h1 className="mb-4 text-4xl font-black sm:text-5xl">Customer Reviews</h1>
         <p className="text-muted-foreground">Every testimonial is real, approved by the customer, and published with their explicit consent.</p>
       </div>
 
       {testimonials.length === 0 ? (
-        <div className="text-center py-24 text-muted-foreground">
+        <div className="py-14 text-center text-muted-foreground sm:py-24">
           <p>Reviews from our first customers will appear here soon.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">
           {testimonials.map((t) => (
-            <div key={t.id} className="glass border border-white/5 rounded-2xl p-6 flex flex-col gap-4">
+            <div key={t.id} className="glass flex flex-col gap-4 rounded-2xl border border-white/5 p-5 sm:p-6">
               {t.consentShowVideo && t.showcaseR2Key && (
                 <div className="aspect-video bg-black/50 rounded-xl overflow-hidden">
-                  <video controls className="w-full h-full" preload="none">
+                  <video controls playsInline className="h-full w-full" preload="none">
                     <source src={`/api/showcase/${t.id}/video`} />
                   </video>
                 </div>

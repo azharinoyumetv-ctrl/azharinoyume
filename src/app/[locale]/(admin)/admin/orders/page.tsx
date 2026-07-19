@@ -33,14 +33,14 @@ export default async function AdminOrdersPage(props: { searchParams: Promise<{ s
 
   return (
     <div>
-      <h1 className="text-3xl font-black mb-8">Orders</h1>
+      <h1 className="mb-6 text-3xl font-black sm:mb-8 sm:text-4xl">Orders</h1>
       {/* Filters */}
       <div className="flex gap-2 mb-6 flex-wrap">
         {STATUSES.map((s) => (
           <Link
             key={s}
             href={s === "all" ? "/admin/orders" : `/admin/orders?status=${s}`}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            className={`flex min-h-11 items-center rounded-lg px-3 text-xs font-medium transition-all ${
               (s === "all" && !searchParams.status) || searchParams.status === s
                 ? "gold-gradient text-black" : "glass border border-white/10 text-muted-foreground hover:text-white"
             }`}
@@ -50,8 +50,8 @@ export default async function AdminOrdersPage(props: { searchParams: Promise<{ s
         ))}
       </div>
       <div className="glass border border-white/5 rounded-2xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="scrollbar-thin overscroll-x overflow-x-auto">
+          <table className="admin-table w-full text-sm">
             <thead className="border-b border-white/5">
               <tr className="text-xs text-muted-foreground uppercase tracking-wider">
                 <th className="px-6 py-4 text-left">Order</th>

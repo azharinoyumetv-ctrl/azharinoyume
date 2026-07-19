@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 const STAGE_LABELS: Record<string, string> = {
   new: "New",
+  new_lead: "New",
   scored: "Scored",
   drafting: "Drafting",
   ready: "Ready",
@@ -16,6 +17,7 @@ const STAGE_LABELS: Record<string, string> = {
 
 const STAGE_COLORS: Record<string, string> = {
   new: "border-white/10",
+  new_lead: "border-white/10",
   scored: "border-blue-500/20",
   drafting: "border-amber-500/20",
   ready: "border-purple-500/20",
@@ -62,9 +64,9 @@ function LeadCard({ lead }: { lead: Lead }) {
   const proposal = lead.proposals[0];
 
   return (
-    <div className="glass border border-white/5 rounded-xl p-4 space-y-2">
+    <div className="space-y-3 rounded-xl border border-white/7 bg-black/20 p-3.5 transition-colors hover:border-white/15">
       <div className="flex items-start justify-between gap-2">
-        <div className="text-sm font-semibold leading-snug flex-1 line-clamp-2">{lead.title}</div>
+        <div className="line-clamp-2 flex-1 text-sm font-semibold leading-snug text-white/85">{lead.title}</div>
         <ScoreBadge score={lead.score} />
       </div>
 
@@ -82,7 +84,7 @@ function LeadCard({ lead }: { lead: Lead }) {
           href={lead.sourceUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 transition-colors"
+          className="inline-flex min-h-10 items-center gap-1 rounded-lg text-xs text-blue-400 transition-colors hover:text-blue-300"
         >
           View listing <ExternalLink className="w-3 h-3" />
         </a>
@@ -92,13 +94,13 @@ function LeadCard({ lead }: { lead: Lead }) {
         <div>
           <button
             onClick={() => setExpanded(!expanded)}
-            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-white transition-colors"
+            className="flex min-h-10 items-center gap-1 rounded-lg text-xs text-muted-foreground transition-colors hover:text-white"
           >
             {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
             {expanded ? "Hide" : "View"} proposal draft
           </button>
           {expanded && (
-            <div className="mt-2 p-3 bg-white/3 rounded-lg text-xs leading-relaxed whitespace-pre-wrap max-h-48 overflow-y-auto">
+            <div className="scrollbar-thin mt-2 max-h-48 overflow-y-auto whitespace-pre-wrap rounded-lg border border-white/5 bg-white/[.025] p-3 text-xs leading-relaxed text-white/50">
               {proposal.draftText}
             </div>
           )}
@@ -112,7 +114,7 @@ function LeadCard({ lead }: { lead: Lead }) {
             key={s}
             onClick={() => move(s)}
             disabled={moving}
-            className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 ${
+            className={`min-h-10 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${
               s === "won"
                 ? "bg-green-500/10 text-green-400 hover:bg-green-500/20"
                 : "bg-red-500/10 text-red-400 hover:bg-red-500/20"
@@ -128,7 +130,7 @@ function LeadCard({ lead }: { lead: Lead }) {
 
 export default function LeadKanbanColumn({ stage, leads }: { stage: string; leads: Lead[] }) {
   return (
-    <div className={`flex-shrink-0 w-64 glass border rounded-2xl p-4 ${STAGE_COLORS[stage] || "border-white/10"}`}>
+    <div className={`dashboard-panel w-[min(84vw,20rem)] flex-shrink-0 snap-start p-3.5 sm:w-72 sm:p-4 ${STAGE_COLORS[stage] || "border-white/10"}`}>
       <div className="flex items-center justify-between mb-4">
         <span className="font-bold text-sm">{STAGE_LABELS[stage] || stage}</span>
         <span className="text-xs bg-white/5 px-2 py-0.5 rounded-full text-muted-foreground">{leads.length}</span>

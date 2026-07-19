@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { Bell, CheckCircle2 } from "lucide-react";
 
 function decodeKey(value: string) {
   const padding = "=".repeat((4 - value.length % 4) % 4); const data = atob((value + padding).replace(/-/g, "+").replace(/_/g, "/"));
@@ -8,9 +9,11 @@ function decodeKey(value: string) {
 
 export default function EnableNotifications() {
   const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
   const key = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-  if (!key) return null;
+  if (!key) return <p className="text-xs leading-5 text-white/35">Project alerts will appear here when push delivery is configured.</p>;
   async function enable() {
+    setBusy(true);
     try {
       const registration = await navigator.serviceWorker.ready;
       const permission = await Notification.requestPermission();
@@ -20,6 +23,7 @@ export default function EnableNotifications() {
       if (!response.ok) throw new Error("Could not save notification subscription");
       setMessage("Notifications enabled");
     } catch (error) { setMessage(error instanceof Error ? error.message : "Could not enable notifications"); }
+    finally { setBusy(false); }
   }
-  return <div><button onClick={enable} className="px-4 py-2 glass border border-white/10 rounded-xl text-sm">Enable alerts</button>{message && <span className="ml-3 text-xs text-muted-foreground">{message}</span>}</div>;
+  return <div><button disabled={busy || message === "Notifications enabled"} onClick={enable} className="dashboard-action w-full justify-between disabled:opacity-60">{message === "Notifications enabled" ? <CheckCircle2 className="h-4 w-4 text-emerald-300" /> : <Bell className="h-4 w-4 text-violet-300" />}<span>{busy ? "Enabling…" : message === "Notifications enabled" ? "Alerts enabled" : "Enable project alerts"}</span></button>{message && message !== "Notifications enabled" && <p className="mt-2 text-xs leading-5 text-rose-300">{message}</p>}</div>;
 }

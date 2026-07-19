@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { CheckCircle, Circle, Clock, Download, MessageSquare, ThumbsUp } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeft, CheckCircle, Circle, Clock, Download, MessageSquare, ThumbsUp } from "lucide-react";
 import { cn, etaLabel } from "@/lib/utils";
+import { DashboardHeader, StatusPill } from "@/components/dashboard/DashboardPrimitives";
 
 const STATUS_STEPS = [
   { key: "DRAFT_UPLOAD", label: "Project Created" },
@@ -53,6 +55,7 @@ export default function OrderStatusClient({ order }: { order: OrderData }) {
   const invoice = data.invoices[0];
   const deliveryLink = data.deliveryLinks[0];
   const eta = data.queuePosition != null ? etaLabel(data.queuePosition, data.package) : null;
+  const statusTone = data.status === "DELIVERED" ? "green" : data.status === "DRAFT_REVIEW" ? "violet" : data.status === "RENDERING" ? "blue" : data.status === "RENDER_FAILED" ? "red" : data.status === "QUEUED" ? "gold" : "neutral";
 
   async function approveDraft() {
     setSubmitting(true);
@@ -73,43 +76,31 @@ export default function OrderStatusClient({ order }: { order: OrderData }) {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-12">
+    <div className="dashboard-backdrop min-h-[calc(100svh-4rem-env(safe-area-inset-top))]">
+    <div className="mx-auto max-w-5xl space-y-5 px-4 py-6 sm:space-y-8 sm:px-6 sm:py-10">
       {/* Header */}
-      <div className="glass border border-white/10 rounded-2xl p-8 mb-8">
-        <div className="flex items-start justify-between mb-6">
-          <div>
-            <div className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Order</div>
-            <div className="text-2xl font-black">{data.orderNumber}</div>
-          </div>
-          <div className={cn(
-            "px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider",
-            data.status === "DELIVERED" ? "bg-green-500/10 text-green-400 border border-green-500/20" :
-            data.status === "DRAFT_REVIEW" ? "bg-gold-500/10 text-gold-400 border border-gold-500/20" :
-            "bg-white/5 text-muted-foreground border border-white/10"
-          )}>
-            {data.status.replace(/_/g, " ")}
-          </div>
-        </div>
+      <DashboardHeader eyebrow="Video project" title={data.orderNumber} description={`${data.purpose || "AI video edit"} · ${data.visualStyle || "Custom style"}`} badge={<StatusPill tone={statusTone} pulse={data.status === "RENDERING"}>{data.status.replace(/_/g, " ")}</StatusPill>} actions={<Link href="/portal" className="dashboard-action"><ArrowLeft className="h-4 w-4" /> Back to studio</Link>} />
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+      <div className="dashboard-panel p-4 sm:p-6">
+        <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4 sm:gap-4">
           {[
             { label: "Package", value: data.package.toUpperCase() },
             { label: "Payment", value: invoice?.status?.replace(/_/g, " ") || "—" },
             { label: "Revisions", value: `${data.revisionCount}/${data.maxRevisions}` },
             { label: "Resolution", value: data.resolution },
           ].map(({ label, value }) => (
-            <div key={label} className="glass rounded-xl p-3">
-              <div className="text-xs text-muted-foreground mb-0.5">{label}</div>
-              <div className="font-semibold">{value}</div>
+            <div key={label} className="rounded-xl border border-white/7 bg-white/[.025] p-3 sm:p-4">
+              <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.14em] text-white/30">{label}</div>
+              <div className="font-semibold text-white/85">{value}</div>
             </div>
           ))}
         </div>
 
         {eta && !["DELIVERED", "DRAFT_REVIEW"].includes(data.status) && (
-          <div className="mt-4 p-4 glass rounded-xl border border-white/5 flex items-center gap-3">
+          <div className="mt-4 flex items-center gap-3 rounded-xl border border-gold-500/15 bg-gold-500/5 p-4">
             <Clock className="w-5 h-5 text-gold-400 flex-shrink-0" />
             <div>
-              <div className="text-xs text-muted-foreground">Estimated draft ready</div>
+              <div className="text-xs text-white/35">Estimated draft ready</div>
               <div className="font-semibold">{eta}</div>
             </div>
           </div>
@@ -117,7 +108,7 @@ export default function OrderStatusClient({ order }: { order: OrderData }) {
       </div>
 
       {/* Progress steps */}
-      <div className="glass border border-white/10 rounded-2xl p-8 mb-8">
+      <div className="dashboard-panel p-5 sm:p-8">
         <h2 className="font-bold mb-6 text-sm uppercase tracking-widest text-muted-foreground">Progress</h2>
         <div className="space-y-4">
           {STATUS_STEPS.map((s, i) => {
@@ -136,7 +127,7 @@ export default function OrderStatusClient({ order }: { order: OrderData }) {
                 <span className={cn("text-sm", isCurrent ? "text-white font-semibold" : isDone ? "text-muted-foreground" : "text-muted-foreground/50")}>
                   {s.label}
                 </span>
-                {isCurrent && <span className="ml-auto text-xs text-gold-400 font-medium">● Current</span>}
+                {isCurrent && <StatusPill tone="gold" pulse>Current</StatusPill>}
               </div>
             );
           })}
@@ -145,7 +136,7 @@ export default function OrderStatusClient({ order }: { order: OrderData }) {
 
       {/* Draft ready — approve or revise */}
       {data.status === "DRAFT_REVIEW" && (
-        <div className="glass border border-gold-500/30 rounded-2xl p-8 mb-8 glow-gold">
+        <div className="dashboard-panel glow-gold border-gold-500/30 p-5 sm:p-8">
           <h2 className="font-bold text-xl mb-2 gold-text">Your Draft is Ready</h2>
           <p className="text-muted-foreground text-sm mb-6">
             Review your draft and approve it or request changes. You have {data.maxRevisions - data.revisionCount} revision{data.maxRevisions - data.revisionCount !== 1 ? "s" : ""} remaining.
@@ -155,7 +146,7 @@ export default function OrderStatusClient({ order }: { order: OrderData }) {
             <button
               onClick={approveDraft}
               disabled={submitting}
-              className="flex items-center justify-center gap-2 py-4 gold-gradient text-black font-bold rounded-xl"
+              className="gold-gradient flex min-h-14 items-center justify-center gap-2 rounded-xl px-4 font-bold text-black"
             >
               <ThumbsUp className="w-4 h-4" />
               Approve — Render Final Video
@@ -168,12 +159,12 @@ export default function OrderStatusClient({ order }: { order: OrderData }) {
                   onChange={(e) => setRevisionNote(e.target.value)}
                   placeholder="Describe what you'd like changed..."
                   rows={3}
-                  className="w-full px-4 py-3 glass border border-white/10 rounded-xl text-sm focus:border-gold-500/50 focus:outline-none resize-none"
+                  className="glass w-full resize-none rounded-xl border border-white/10 px-4 py-3 text-base focus:border-gold-500/50 focus:outline-none"
                 />
                 <button
                   onClick={requestRevision}
                   disabled={submitting || !revisionNote.trim()}
-                  className="w-full flex items-center justify-center gap-2 py-3 glass border border-white/10 rounded-xl text-sm font-semibold disabled:opacity-50"
+                  className="glass flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-white/10 px-4 text-sm font-semibold disabled:opacity-50"
                 >
                   <MessageSquare className="w-4 h-4" />
                   Request Revision
@@ -186,7 +177,7 @@ export default function OrderStatusClient({ order }: { order: OrderData }) {
 
       {/* Final delivery */}
       {["DELIVERED", "DRAFT_REVIEW"].includes(data.status) && deliveryLink?.r2Key && (
-        <div className="glass border border-green-500/30 rounded-2xl p-8 mb-8">
+        <div className="dashboard-panel border-green-500/30 p-5 sm:p-8">
           <h2 className="font-bold text-xl mb-2 text-green-400">Final Video Delivered 🎉</h2>
           <p className="text-muted-foreground text-sm mb-6">
             Your video is ready. Download it before the link expires.
@@ -194,13 +185,14 @@ export default function OrderStatusClient({ order }: { order: OrderData }) {
           </p>
           <a
             href={`/api/v1/orders/${data.id}/download`}
-            className="flex items-center justify-center gap-2 py-4 bg-green-500 text-white font-bold rounded-xl hover:bg-green-600 transition-colors"
+            className="flex min-h-14 items-center justify-center gap-2 rounded-xl bg-green-500 px-4 font-bold text-white transition-colors hover:bg-green-600"
           >
             <Download className="w-5 h-5" />
             Download Final Video
           </a>
         </div>
       )}
+    </div>
     </div>
   );
 }
