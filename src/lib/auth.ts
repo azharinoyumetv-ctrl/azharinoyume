@@ -1,8 +1,10 @@
 import type { NextAuthOptions } from "next-auth";
-import EmailProvider from "next-auth/providers/email";
+import EmailProviderModule from "next-auth/providers/email";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { Resend } from "resend";
 import { prisma } from "@/lib/prisma";
+
+const EmailProvider = ((EmailProviderModule as unknown as { default?: typeof EmailProviderModule }).default || EmailProviderModule) as typeof EmailProviderModule;
 
 declare module "next-auth" {
   interface User { id: string; role: string; }

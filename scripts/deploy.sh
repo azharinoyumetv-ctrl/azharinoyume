@@ -28,7 +28,9 @@ npm prune --omit=dev
 
 echo "[6] Restart app with PM2"
 pm2 startOrReload ecosystem.config.cjs --update-env
-pm2 startOrReload ecosystem.render.cjs --update-env
+cd /opt/azyume-render-service
+pm2 startOrReload ecosystem.config.cjs --update-env
+cd /var/www/azharinoyume
 
 echo "[7] Save PM2 config"
 pm2 save

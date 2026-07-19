@@ -104,7 +104,7 @@ npx next build
 
 echo "==> 8/9  Start everything under PM2"
 cd "$SAAS_DIR" && pm2 start ecosystem.config.cjs
-cd "$SAAS_DIR" && pm2 start ecosystem.render.cjs
+cd "$AZYUME_RENDER_DIR" && pm2 start ecosystem.config.cjs
 pm2 save
 pm2 startup systemd -u "$USER" --hp "$HOME" | tail -1 | bash || true
 
