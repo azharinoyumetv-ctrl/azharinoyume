@@ -7,17 +7,23 @@ const intlProxy = createMiddleware(routing);
 
 export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const segments = pathname.split("/").filter(Boolean);
+  const hasLocalePrefix = routing.locales.some((locale) => locale === segments[0]);
+  const locale = hasLocalePrefix ? segments[0] : routing.defaultLocale;
+  const section = segments[hasLocalePrefix ? 1 : 0];
+  const localePrefix = locale === routing.defaultLocale ? "" : `/${locale}`;
+  const isAdminRoute = section === "admin";
+  const isPortalRoute = section === "portal";
 
-  if (pathname.includes("/admin") || pathname.includes("/portal")) {
+  if (isAdminRoute || isPortalRoute) {
     const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
     if (!token) {
-      const locale = pathname.split("/")[1] || routing.defaultLocale;
-      const loginUrl = new URL(`/${locale}/login`, request.url);
+      const loginUrl = new URL(`${localePrefix}/login`, request.url);
       loginUrl.searchParams.set("callbackUrl", pathname);
       return NextResponse.redirect(loginUrl);
     }
-    if (pathname.includes("/admin") && token.role !== "admin") {
-      return NextResponse.redirect(new URL(`/${pathname.split("/")[1] || routing.defaultLocale}/portal`, request.url));
+    if (isAdminRoute && token.role !== "admin") {
+      return NextResponse.redirect(new URL(`${localePrefix}/portal`, request.url));
     }
   }
 
