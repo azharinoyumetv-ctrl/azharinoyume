@@ -3,7 +3,12 @@
 # Azharinoyume — Deploy/Update Script
 # Run from /var/www/azharinoyume on VPS after pushing new code
 # =============================================================
-set -e
+set -euo pipefail
+
+cd /var/www/azharinoyume
+set -a
+. ./.env
+set +a
 
 echo "[1] Pull latest code"
 git pull origin main
@@ -22,10 +27,11 @@ npm run build
 npm prune --omit=dev
 
 echo "[6] Restart app with PM2"
-pm2 restart azharinoyume || pm2 start npm --name azharinoyume -- start
+pm2 startOrReload ecosystem.config.cjs --update-env
+pm2 startOrReload ecosystem.render.cjs --update-env
 
 echo "[7] Save PM2 config"
 pm2 save
 
 echo "Deployment complete. App is running."
-pm2 status azharinoyume
+pm2 status azyume-web azyume-worker azyume-render-service
