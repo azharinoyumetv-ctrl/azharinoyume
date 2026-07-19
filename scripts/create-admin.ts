@@ -2,11 +2,14 @@
  * Run once on VPS to create the admin account:
  * npx tsx scripts/create-admin.ts
  */
-import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "../src/generated/prisma/client";
 import bcrypt from "bcrypt";
 import * as readline from "readline";
 
-const prisma = new PrismaClient();
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) throw new Error("DATABASE_URL is required");
+const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
 
 async function main() {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
