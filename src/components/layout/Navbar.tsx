@@ -54,6 +54,7 @@ export default function Navbar() {
   const navLinks = [
     { href: "/packages", label: t("packages") },
     { href: "/how-it-works", label: t("howItWorks") },
+    { href: "/360-editor", label: "360 Studio" },
     { href: "/style-gallery", label: t("styleGallery") },
     { href: "/testimonials", label: t("testimonials") },
     { href: "/faq", label: t("faq") },

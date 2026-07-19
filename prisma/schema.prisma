@@ -65,6 +65,8 @@ model Order {
   frameRate              String   @default("30fps") @map("frame_rate")
   exportFormat           String   @default("MP4") @map("export_format")
   compression            String   @default("balanced")
+  editingMode            String   @default("standard") @map("editing_mode")
+  editorConfig           Json?    @map("editor_config")
   customerPromptOriginal String?  @map("customer_prompt_original")
   customerPromptLanguage String?  @map("customer_prompt_language")
   customerPromptEn       String?  @map("customer_prompt_en")
