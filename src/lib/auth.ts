@@ -1,10 +1,19 @@
 import type { NextAuthOptions } from "next-auth";
 import EmailProviderModule from "next-auth/providers/email";
+import CredentialsProviderModule from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { Resend } from "resend";
 import { prisma } from "@/lib/prisma";
+import {
+  clearPasswordLoginFailures,
+  isPasswordLoginRateLimited,
+  parseLoginCredentials,
+  recordPasswordLoginFailure,
+  verifyPasswordHash,
+} from "@/lib/auth/password";
 
 const EmailProvider = ((EmailProviderModule as unknown as { default?: typeof EmailProviderModule }).default || EmailProviderModule) as typeof EmailProviderModule;
+const CredentialsProvider = ((CredentialsProviderModule as unknown as { default?: typeof CredentialsProviderModule }).default || CredentialsProviderModule) as typeof CredentialsProviderModule;
 
 declare module "next-auth" {
   interface User { id: string; role: string; }
@@ -21,6 +30,33 @@ export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
   pages: { signIn: "/login" },
   providers: [
+    CredentialsProvider({
+      id: "credentials",
+      name: "Email and password",
+      credentials: {
+        email: { label: "Email", type: "email", autoComplete: "email" },
+        password: { label: "Password", type: "password", autoComplete: "current-password" },
+      },
+      async authorize(credentials, request) {
+        const parsed = parseLoginCredentials(credentials);
+        if (!parsed) return null;
+
+        const forwardedFor = request.headers?.["cf-connecting-ip"] || request.headers?.["x-forwarded-for"] || "unknown";
+        const clientAddress = Array.isArray(forwardedFor) ? forwardedFor[0] : forwardedFor.split(",")[0].trim();
+        const rateLimitKey = `${clientAddress}:${parsed.email}`;
+        if (isPasswordLoginRateLimited(rateLimitKey)) return null;
+
+        const user = await prisma.user.findUnique({ where: { email: parsed.email } });
+        const passwordMatches = await verifyPasswordHash(parsed.password, user?.passwordHash);
+        if (!user || !passwordMatches) {
+          recordPasswordLoginFailure(rateLimitKey);
+          return null;
+        }
+
+        clearPasswordLoginFailures(rateLimitKey);
+        return { id: user.id, email: user.email, name: user.name, role: user.role };
+      },
+    }),
     EmailProvider({
       from: process.env.EMAIL_FROM || "noreply@azharinoyume.cloud",
       maxAge: 15 * 60,
