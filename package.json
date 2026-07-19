@@ -38,6 +38,7 @@
     "@radix-ui/react-tabs": "^1.1.0",
     "@radix-ui/react-toast": "^1.2.1",
     "@radix-ui/react-tooltip": "^1.1.2",
+    "@swc/helpers": "^0.5.23",
     "@types/bcrypt": "^6.0.0",
     "bcrypt": "^6.0.0",
     "bullmq": "^5.80.8",
