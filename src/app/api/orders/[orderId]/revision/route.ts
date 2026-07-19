@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { apiError, requireOrderAccess } from "@/lib/api/authz";
 
-export async function POST(req: NextRequest, { params }: { params: { orderId: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ orderId: string }> }) {
+  try {
+  const { orderId } = await params;
   const { notes } = await req.json();
-  const order = await prisma.order.findUnique({ where: { id: params.orderId } });
+  const { order } = await requireOrderAccess(orderId);
   if (!order) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  if (order.status !== "draft_ready") return NextResponse.json({ error: "No draft ready" }, { status: 400 });
+  if (order.status !== "DRAFT_REVIEW") return NextResponse.json({ error: "No draft ready" }, { status: 400 });
   if (order.revisionCount >= order.maxRevisions) {
     return NextResponse.json({ error: "Revision limit reached" }, { status: 400 });
   }
@@ -13,15 +16,15 @@ export async function POST(req: NextRequest, { params }: { params: { orderId: st
   await prisma.$transaction([
     prisma.revision.create({
       data: {
-        orderId: params.orderId,
+        orderId,
         revisionNumber: order.revisionCount + 1,
         customerNotes: notes,
         status: "requested",
       },
     }),
     prisma.order.update({
-      where: { id: params.orderId },
-      data: { status: "revision_requested", revisionCount: { increment: 1 } },
+      where: { id: orderId },
+      data: { status: "REVISION_REQUESTED", revisionCount: { increment: 1 }, manualReviewRequired: true },
     }),
   ]);
 
@@ -30,9 +33,12 @@ export async function POST(req: NextRequest, { params }: { params: { orderId: st
     await fetch(`${process.env.N8N_BASE_URL}/webhook/order-events`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-n8n-secret": process.env.N8N_WEBHOOK_SECRET || "" },
-      body: JSON.stringify({ event: "revision_requested", orderId: params.orderId, notes }),
+      body: JSON.stringify({ event: "revision_requested", orderId, notes }),
     }).catch(() => {});
   }
 
   return NextResponse.json({ ok: true });
+  } catch (error) {
+    return apiError(error);
+  }
 }

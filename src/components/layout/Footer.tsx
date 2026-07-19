@@ -13,11 +13,7 @@ export default function Footer() {
               <span className="text-white"> Cut AI</span>
             </div>
             <p className="text-muted-foreground text-sm max-w-xs">{t("tagline")}</p>
-            <div className="flex items-center gap-3 mt-6">
-              <img src="/payment-xendit.svg" alt="Xendit" className="h-5 opacity-50 hover:opacity-100 transition-opacity" />
-              <img src="/payment-payoneer.svg" alt="Payoneer" className="h-5 opacity-50 hover:opacity-100 transition-opacity" />
-              <img src="/payment-wise.svg" alt="Wise" className="h-5 opacity-50 hover:opacity-100 transition-opacity" />
-            </div>
+            <div className="flex flex-wrap items-center gap-2 mt-6 text-xs text-muted-foreground"><span className="px-2.5 py-1 rounded-full border border-white/10">DOKU</span><span className="px-2.5 py-1 rounded-full border border-white/10">Xendit v3</span><span className="px-2.5 py-1 rounded-full border border-white/10">Payoneer</span></div>
           </div>
           <div>
             <div className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-4">{t("support")}</div>

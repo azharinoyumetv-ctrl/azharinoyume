@@ -9,7 +9,7 @@ echo "[1] Pull latest code"
 git pull origin main
 
 echo "[2] Install dependencies"
-npm ci --omit=dev
+npm ci
 
 echo "[3] Run database migrations"
 npx prisma migrate deploy
@@ -19,6 +19,7 @@ npx prisma generate
 
 echo "[5] Build Next.js"
 npm run build
+npm prune --omit=dev
 
 echo "[6] Restart app with PM2"
 pm2 restart azharinoyume || pm2 start npm --name azharinoyume -- start

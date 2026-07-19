@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 const EXAMPLES = [
   {
     type: "Wedding Highlight",
@@ -64,17 +66,17 @@ export default function PromptExamplesPage() {
               <span className="px-3 py-1 rounded-full text-xs font-semibold glass border border-white/10 flex-shrink-0">{pkg}</span>
             </div>
             <div className="bg-white/3 rounded-xl p-4 border border-white/5">
-              <p className="text-sm text-muted-foreground leading-relaxed italic">"{prompt}"</p>
+              <p className="text-sm text-muted-foreground leading-relaxed italic">&ldquo;{prompt}&rdquo;</p>
             </div>
           </div>
         ))}
       </div>
 
       <div className="mt-12 p-6 glass border border-gold-500/20 rounded-2xl text-center">
-        <p className="text-muted-foreground mb-4">You don't need to write a perfect prompt. Our order form generates one from your selections.</p>
-        <a href="/order" className="inline-flex items-center gap-2 px-6 py-3 gold-gradient text-black font-bold rounded-xl">
+        <p className="text-muted-foreground mb-4">You don&apos;t need to write a perfect prompt. Our order form generates one from your selections.</p>
+        <Link href="/order" className="inline-flex items-center gap-2 px-6 py-3 gold-gradient text-black font-bold rounded-xl">
           Start Your Order →
-        </a>
+        </Link>
       </div>
     </div>
   );

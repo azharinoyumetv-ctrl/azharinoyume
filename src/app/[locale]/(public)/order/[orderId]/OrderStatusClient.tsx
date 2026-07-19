@@ -5,17 +5,12 @@ import { CheckCircle, Circle, Clock, Download, MessageSquare, ThumbsUp } from "l
 import { cn, etaLabel } from "@/lib/utils";
 
 const STATUS_STEPS = [
-  { key: "payment_confirmed", label: "Payment Confirmed" },
-  { key: "upload_received", label: "Upload Received" },
-  { key: "brief_generated", label: "Brief Generated" },
-  { key: "in_queue", label: "In Queue" },
-  { key: "editing_started", label: "Editing Started" },
-  { key: "captions_processing", label: "Captions Processing" },
-  { key: "rendering_draft", label: "Rendering Draft" },
-  { key: "quality_check", label: "Quality Check" },
-  { key: "draft_ready", label: "Draft Ready" },
-  { key: "revision_requested", label: "Revision" },
-  { key: "delivered", label: "Delivered" },
+  { key: "DRAFT_UPLOAD", label: "Project Created" },
+  { key: "QUEUED", label: "Credits Reserved" },
+  { key: "RENDERING", label: "Rendering" },
+  { key: "DRAFT_REVIEW", label: "Draft Ready" },
+  { key: "REVISION_REQUESTED", label: "Revision" },
+  { key: "DELIVERED", label: "Delivered" },
 ];
 
 const STATUS_ORDER = STATUS_STEPS.map((s) => s.key);
@@ -33,7 +28,7 @@ interface OrderData {
   revisionCount: number;
   maxRevisions: number;
   invoices: { status: string; paidAmount: number | null; currency: string }[];
-  deliveryLinks: { signedUrl: string | null; expiresAt: string | null }[];
+  deliveryLinks: { r2Key: string | null; expiresAt: string | null }[];
   renders: { status: string }[];
   revisions: { revisionNumber: number; status: string }[];
 }
@@ -88,8 +83,8 @@ export default function OrderStatusClient({ order }: { order: OrderData }) {
           </div>
           <div className={cn(
             "px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider",
-            data.status === "delivered" ? "bg-green-500/10 text-green-400 border border-green-500/20" :
-            data.status === "draft_ready" ? "bg-gold-500/10 text-gold-400 border border-gold-500/20" :
+            data.status === "DELIVERED" ? "bg-green-500/10 text-green-400 border border-green-500/20" :
+            data.status === "DRAFT_REVIEW" ? "bg-gold-500/10 text-gold-400 border border-gold-500/20" :
             "bg-white/5 text-muted-foreground border border-white/10"
           )}>
             {data.status.replace(/_/g, " ")}
@@ -110,7 +105,7 @@ export default function OrderStatusClient({ order }: { order: OrderData }) {
           ))}
         </div>
 
-        {eta && !["delivered", "draft_ready"].includes(data.status) && (
+        {eta && !["DELIVERED", "DRAFT_REVIEW"].includes(data.status) && (
           <div className="mt-4 p-4 glass rounded-xl border border-white/5 flex items-center gap-3">
             <Clock className="w-5 h-5 text-gold-400 flex-shrink-0" />
             <div>
@@ -149,7 +144,7 @@ export default function OrderStatusClient({ order }: { order: OrderData }) {
       </div>
 
       {/* Draft ready — approve or revise */}
-      {data.status === "draft_ready" && (
+      {data.status === "DRAFT_REVIEW" && (
         <div className="glass border border-gold-500/30 rounded-2xl p-8 mb-8 glow-gold">
           <h2 className="font-bold text-xl mb-2 gold-text">Your Draft is Ready</h2>
           <p className="text-muted-foreground text-sm mb-6">
@@ -190,7 +185,7 @@ export default function OrderStatusClient({ order }: { order: OrderData }) {
       )}
 
       {/* Final delivery */}
-      {data.status === "delivered" && deliveryLink?.signedUrl && (
+      {["DELIVERED", "DRAFT_REVIEW"].includes(data.status) && deliveryLink?.r2Key && (
         <div className="glass border border-green-500/30 rounded-2xl p-8 mb-8">
           <h2 className="font-bold text-xl mb-2 text-green-400">Final Video Delivered 🎉</h2>
           <p className="text-muted-foreground text-sm mb-6">
@@ -198,7 +193,7 @@ export default function OrderStatusClient({ order }: { order: OrderData }) {
             {deliveryLink.expiresAt && ` Link expires ${new Date(deliveryLink.expiresAt).toLocaleDateString()}.`}
           </p>
           <a
-            href={deliveryLink.signedUrl}
+            href={`/api/v1/orders/${data.id}/download`}
             className="flex items-center justify-center gap-2 py-4 bg-green-500 text-white font-bold rounded-xl hover:bg-green-600 transition-colors"
           >
             <Download className="w-5 h-5" />

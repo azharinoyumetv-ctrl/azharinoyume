@@ -58,7 +58,7 @@ export default async function StyleGalleryPage() {
               {testimonials.map((t) => (
                 <div key={t.id} className="glass border border-white/5 rounded-2xl p-6 flex flex-col gap-4">
                   {t.reviewText && (
-                    <p className="text-white/80 text-sm leading-relaxed flex-1">"{t.reviewText}"</p>
+                    <p className="text-white/80 text-sm leading-relaxed flex-1">&ldquo;{t.reviewText}&rdquo;</p>
                   )}
                   <div className="text-xs text-muted-foreground">
                     {t.consentHideName ? (

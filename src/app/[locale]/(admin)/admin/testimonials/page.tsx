@@ -2,11 +2,12 @@ import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/utils";
 import TestimonialActions from "@/components/admin/TestimonialActions";
 
-export default async function AdminTestimonialsPage({
-  searchParams,
-}: {
-  searchParams: { tab?: string };
-}) {
+export default async function AdminTestimonialsPage(
+  props: {
+    searchParams: Promise<{ tab?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const tab = searchParams.tab || "pending";
   const statusMap: Record<string, string> = { pending: "pending", approved: "approved", rejected: "rejected" };
   const status = statusMap[tab] || "pending";
@@ -63,7 +64,7 @@ export default async function AdminTestimonialsPage({
             </div>
 
             {t.reviewText && (
-              <p className="text-sm text-white/80 leading-relaxed">"{t.reviewText}"</p>
+              <p className="text-sm text-white/80 leading-relaxed">&ldquo;{t.reviewText}&rdquo;</p>
             )}
 
             <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">

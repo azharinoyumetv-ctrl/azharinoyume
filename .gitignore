@@ -19,6 +19,7 @@ build/
 
 # Prisma
 prisma/*.db
+src/generated/
 
 # OS
 .DS_Store

@@ -2,7 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import Link from "next/link";
 
-export default async function AdminOrdersPage({ searchParams }: { searchParams: { status?: string; q?: string } }) {
+export default async function AdminOrdersPage(props: { searchParams: Promise<{ status?: string; q?: string }> }) {
+  const searchParams = await props.searchParams;
   const where: Record<string, unknown> = {};
   if (searchParams.status) where.status = searchParams.status;
   if (searchParams.q) {
@@ -33,7 +34,6 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
   return (
     <div>
       <h1 className="text-3xl font-black mb-8">Orders</h1>
-
       {/* Filters */}
       <div className="flex gap-2 mb-6 flex-wrap">
         {STATUSES.map((s) => (
@@ -49,7 +49,6 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
           </Link>
         ))}
       </div>
-
       <div className="glass border border-white/5 rounded-2xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -75,7 +74,7 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
                         {order.orderNumber}
                       </Link>
                       {order.manualReviewRequired && !order.adminApproved && (
-                        <div className="text-xs text-amber-400 mt-0.5">⚠ Wise review</div>
+                        <div className="text-xs text-amber-400 mt-0.5">Human review required</div>
                       )}
                     </td>
                     <td className="px-6 py-4 text-muted-foreground">{order.customerEmail}</td>

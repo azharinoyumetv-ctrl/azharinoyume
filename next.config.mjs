@@ -10,9 +10,7 @@ const nextConfig = {
       { protocol: "https", hostname: "*.azharinoyume.cloud" },
     ],
   },
-  experimental: {
-    serverComponentsExternalPackages: ["puppeteer"],
-  },
+  serverExternalPackages: ["puppeteer", "@prisma/adapter-pg", "pg"],
 };
 
 export default withNextIntl(nextConfig);

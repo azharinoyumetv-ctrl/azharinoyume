@@ -5,7 +5,8 @@ import { prisma } from "@/lib/prisma";
 
 const VALID_STAGES = ["new", "scored", "drafting", "ready", "submitted", "won", "lost"];
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== "admin") return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
 

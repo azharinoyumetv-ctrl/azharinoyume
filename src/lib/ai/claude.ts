@@ -1,10 +1,5 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/prisma";
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
-const CHEAP_MODEL = process.env.ANTHROPIC_MODEL_CHEAP || "claude-haiku-4-5-20251001";
-const PREMIUM_MODEL = process.env.ANTHROPIC_MODEL_PREMIUM || "claude-sonnet-4-6";
+import { generateAIText } from "@/lib/ai/provider";
 
 interface AICallOptions {
   orderId?: string;
@@ -14,21 +9,14 @@ interface AICallOptions {
 }
 
 export async function callClaude(prompt: string, opts: AICallOptions): Promise<string> {
-  const model = opts.usePremium ? PREMIUM_MODEL : CHEAP_MODEL;
-
-  const response = await client.messages.create({
-    model,
-    max_tokens: 1024,
-    system: opts.systemPrompt || "You are a professional video editing assistant. Be concise and practical.",
-    messages: [{ role: "user", content: prompt }],
-  });
-
-  const text = response.content[0].type === "text" ? response.content[0].text : "";
+  const response = await generateAIText({ prompt, premium: opts.usePremium, maxTokens: 1024, system: opts.systemPrompt || "You are a professional video editing assistant. Be concise and practical." });
+  const model = response.model;
+  const text = response.text;
 
   // Cost estimation (approximate)
   const inputCost = model.includes("haiku") ? 0.00000025 : 0.000003;
   const outputCost = model.includes("haiku") ? 0.00000125 : 0.000015;
-  const costUsd = response.usage.input_tokens * inputCost + response.usage.output_tokens * outputCost;
+  const costUsd = response.inputTokens * inputCost + response.outputTokens * outputCost;
 
   if (opts.orderId) {
     await prisma.aiUsageLog.create({
@@ -36,8 +24,10 @@ export async function callClaude(prompt: string, opts: AICallOptions): Promise<s
         orderId: opts.orderId,
         model,
         purpose: opts.purpose,
-        inputTokens: response.usage.input_tokens,
-        outputTokens: response.usage.output_tokens,
+        provider: response.provider,
+        promptVersion: "v1",
+        inputTokens: response.inputTokens,
+        outputTokens: response.outputTokens,
         costUsd,
       },
     });
@@ -148,13 +138,7 @@ Customer notes: ${formData.customerNotes || "none"}
 
 Write a 3-5 sentence natural language prompt the customer can review and edit. First person ("I want..."). Include specific style, mood, technical requirements, and what to include/exclude. Make it clear and actionable for a video editor.`;
 
-  const response = await client.messages.create({
-    model: CHEAP_MODEL,
-    max_tokens: 300,
-    messages: [{ role: "user", content: prompt }],
-  });
-
-  return response.content[0].type === "text" ? response.content[0].text : "";
+  return (await generateAIText({ prompt, maxTokens: 300 })).text;
 }
 
 export async function scoreJobLead(job: { title: string; description: string; budget?: string }): Promise<{
@@ -192,13 +176,7 @@ Respond in this JSON format:
   "proposal": "Dear client, ..."
 }`;
 
-  const response = await client.messages.create({
-    model: CHEAP_MODEL,
-    max_tokens: 600,
-    messages: [{ role: "user", content: prompt }],
-  });
-
-  const text = response.content[0].type === "text" ? response.content[0].text : "{}";
+  const text = (await generateAIText({ prompt, maxTokens: 600 })).text || "{}";
   try {
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     return jsonMatch ? JSON.parse(jsonMatch[0]) : { score: 0, breakdown: {} };

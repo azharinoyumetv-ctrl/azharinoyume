@@ -5,6 +5,8 @@ import { getMessages } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { routing } from "@/i18n/routing";
 import "../globals.css";
+import PwaRegister from "@/components/PwaRegister";
+import ClientProviders from "@/components/ClientProviders";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -29,7 +31,7 @@ export default async function LocaleLayout({
   params,
 }: {
   children: React.ReactNode;
-  params: { locale: string };
+  params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
   if (!routing.locales.includes(locale as never)) notFound();
@@ -39,7 +41,7 @@ export default async function LocaleLayout({
     <html lang={locale} className="dark">
       <body className={inter.className}>
         <NextIntlClientProvider messages={messages}>
-          {children}
+          <ClientProviders><PwaRegister />{children}</ClientProviders>
         </NextIntlClientProvider>
       </body>
     </html>

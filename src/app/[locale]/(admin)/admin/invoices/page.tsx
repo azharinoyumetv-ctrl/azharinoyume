@@ -10,7 +10,8 @@ const STATUS_BADGE: Record<string, string> = {
   void: "bg-white/5 text-muted-foreground line-through",
 };
 
-export default async function AdminInvoicesPage({ searchParams }: { searchParams: { status?: string } }) {
+export default async function AdminInvoicesPage(props: { searchParams: Promise<{ status?: string }> }) {
+  const searchParams = await props.searchParams;
   const where = searchParams.status ? { status: searchParams.status } : {};
 
   const invoices = await prisma.invoice.findMany({

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, ShoppingBag, CreditCard, FileText, BarChart3,
-  Users, Star, Briefcase, Settings, AlertCircle, Upload, LogOut
+  Star, Briefcase, Settings, Upload, LogOut
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { signOut } from "next-auth/react";
@@ -16,6 +16,7 @@ const NAV = [
   { label: "Invoices", href: "/admin/invoices", icon: FileText },
   { label: "Accounting", href: "/admin/accounting", icon: BarChart3 },
   { label: "Job Leads", href: "/admin/leads", icon: Briefcase },
+  { label: "Gig Drafts", href: "/admin/gigs", icon: Upload },
   { label: "Testimonials", href: "/admin/testimonials", icon: Star },
   { label: "Settings", href: "/admin/settings", icon: Settings },
 ];
@@ -23,7 +24,7 @@ const NAV = [
 export default function AdminSidebar() {
   const pathname = usePathname();
   return (
-    <aside className="fixed left-0 top-0 h-screen w-64 glass border-r border-white/5 flex flex-col z-40">
+    <><aside className="fixed left-0 top-0 h-screen w-64 glass border-r border-white/5 hidden lg:flex flex-col z-40">
       <div className="p-6 border-b border-white/5">
         <div className="text-lg font-black">
           <span className="gold-text">azhari</span>
@@ -59,6 +60,6 @@ export default function AdminSidebar() {
           Sign Out
         </button>
       </div>
-    </aside>
+    </aside><nav className="fixed bottom-0 inset-x-0 z-50 lg:hidden glass border-t border-white/10 flex overflow-x-auto px-2 py-2">{NAV.map(({label,href,icon:Icon}) => <Link key={href} href={href} className={cn("min-w-20 px-2 py-2 rounded-lg flex flex-col items-center gap-1 text-[10px]", pathname === href || pathname.startsWith(href + "/") ? "gold-gradient text-black" : "text-muted-foreground")}><Icon className="w-4 h-4"/>{label}</Link>)}</nav></>
   );
 }

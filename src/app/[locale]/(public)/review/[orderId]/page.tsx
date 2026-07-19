@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, use } from "react";
 import { CheckCircle, Loader2 } from "lucide-react";
 
-export default function ReviewPage({ params }: { params: { orderId: string } }) {
+export default function ReviewPage(props: { params: Promise<{ orderId: string }> }) {
+  const params = use(props.params);
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({

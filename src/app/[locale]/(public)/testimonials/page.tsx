@@ -39,7 +39,7 @@ export default async function TestimonialsPage() {
               )}
               <div>
                 <div className="flex text-gold-400 mb-3">{"★★★★★"}</div>
-                <p className="text-sm text-muted-foreground leading-relaxed italic">"{t.reviewText}"</p>
+                <p className="text-sm text-muted-foreground leading-relaxed italic">&ldquo;{t.reviewText}&rdquo;</p>
               </div>
               <div className="mt-auto pt-4 border-t border-white/5 text-xs text-muted-foreground">
                 {t.consentHideName ? "Anonymous customer" : (t.user?.name || "Customer")}

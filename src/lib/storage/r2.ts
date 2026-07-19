@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, CreateMultipartUploadCommand, UploadPartCommand, CompleteMultipartUploadCommand, AbortMultipartUploadCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 export const r2 = new S3Client({
@@ -27,6 +27,32 @@ export async function getSignedUploadUrl(key: string, contentType: string, expir
 
 export async function deleteFromR2(key: string) {
   await r2.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }));
+}
+
+export async function createMultipartUpload(key: string, contentType: string) {
+  const result = await r2.send(new CreateMultipartUploadCommand({ Bucket: BUCKET, Key: key, ContentType: contentType }));
+  if (!result.UploadId) throw new Error("R2 did not create an upload ID");
+  return result.UploadId;
+}
+
+export async function getSignedPartUrl(key: string, uploadId: string, partNumber: number, expiresInSeconds = 900) {
+  return getSignedUrl(r2, new UploadPartCommand({ Bucket: BUCKET, Key: key, UploadId: uploadId, PartNumber: partNumber }), { expiresIn: expiresInSeconds });
+}
+
+export async function completeMultipartUpload(key: string, uploadId: string, parts: { partNumber: number; etag: string }[]) {
+  return r2.send(new CompleteMultipartUploadCommand({ Bucket: BUCKET, Key: key, UploadId: uploadId, MultipartUpload: { Parts: parts.sort((a, b) => a.partNumber - b.partNumber).map((part) => ({ PartNumber: part.partNumber, ETag: part.etag })) } }));
+}
+
+export async function abortMultipartUpload(key: string, uploadId: string) {
+  await r2.send(new AbortMultipartUploadCommand({ Bucket: BUCKET, Key: key, UploadId: uploadId }));
+}
+
+export async function headR2Object(key: string) {
+  return r2.send(new HeadObjectCommand({ Bucket: BUCKET, Key: key }));
+}
+
+export async function objectExists(key: string) {
+  try { await headR2Object(key); return true; } catch { return false; }
 }
 
 // R2 key helpers

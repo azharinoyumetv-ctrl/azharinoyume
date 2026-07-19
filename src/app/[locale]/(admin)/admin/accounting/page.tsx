@@ -6,20 +6,19 @@ async function getAccountingData() {
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const startOfWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-  const [monthRevenue, weekRevenue, profitReports, gatewayBreakdown, packageBreakdown, pendingInvoices] = await Promise.all([
-    prisma.ledgerEntry.aggregate({ where: { entryType: "revenue", createdAt: { gte: startOfMonth } }, _sum: { amount: true } }),
-    prisma.ledgerEntry.aggregate({ where: { entryType: "revenue", createdAt: { gte: startOfWeek } }, _sum: { amount: true } }),
+  const [monthRevenue, weekRevenue, profitReports, gatewayBreakdown, pendingPayments] = await Promise.all([
+    prisma.payment.aggregate({ where: { status: "PAID", paidAt: { gte: startOfMonth } }, _sum: { idrAmount: true } }),
+    prisma.payment.aggregate({ where: { status: "PAID", paidAt: { gte: startOfWeek } }, _sum: { idrAmount: true } }),
     prisma.profitReport.findMany({ orderBy: { calculatedAt: "desc" }, take: 20, include: { order: { select: { orderNumber: true, package: true, customerEmail: true } } } }),
-    prisma.paymentTransaction.groupBy({ by: ["provider"], _sum: { amount: true }, _count: true }),
-    prisma.profitReport.groupBy({ by: ["orderId"], _sum: { grossRevenue: true, grossProfit: true }, _count: true }),
-    prisma.invoice.count({ where: { status: "pending_payment" } }),
+    prisma.payment.groupBy({ by: ["provider"], where: { status: "PAID" }, _sum: { idrAmount: true }, _count: true }),
+    prisma.payment.count({ where: { status: { in: ["CREATED", "PENDING_ACTION"] } } }),
   ]);
 
   const avgMargin = profitReports.length > 0
     ? profitReports.reduce((s, r) => s + Number(r.profitMargin), 0) / profitReports.length
     : 0;
 
-  return { monthRevenue: Number(monthRevenue._sum.amount || 0), weekRevenue: Number(weekRevenue._sum.amount || 0), profitReports, gatewayBreakdown, avgMargin, pendingInvoices };
+  return { monthRevenue: Number(monthRevenue._sum.idrAmount || 0), weekRevenue: Number(weekRevenue._sum.idrAmount || 0), profitReports, gatewayBreakdown, avgMargin, pendingPayments };
 }
 
 export default async function AccountingPage() {
@@ -32,10 +31,10 @@ export default async function AccountingPage() {
       {/* Revenue summary */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {[
-          { label: "Month Revenue", value: formatCurrency(data.monthRevenue) },
-          { label: "Week Revenue", value: formatCurrency(data.weekRevenue) },
+          { label: "Month Revenue", value: formatCurrency(data.monthRevenue, "IDR") },
+          { label: "Week Revenue", value: formatCurrency(data.weekRevenue, "IDR") },
           { label: "Avg Profit Margin", value: `${data.avgMargin.toFixed(1)}%` },
-          { label: "Pending Invoices", value: data.pendingInvoices },
+          { label: "Pending Payments", value: data.pendingPayments },
         ].map(({ label, value }) => (
           <div key={label} className="glass border border-white/5 rounded-2xl p-6">
             <div className="text-2xl font-black mb-1">{value}</div>
@@ -53,7 +52,7 @@ export default async function AccountingPage() {
               <div key={g.provider} className="flex items-center justify-between text-sm">
                 <span className="font-medium capitalize">{g.provider}</span>
                 <div className="text-right">
-                  <div className="font-bold">{formatCurrency(Number(g._sum.amount || 0))}</div>
+                  <div className="font-bold">{formatCurrency(Number(g._sum.idrAmount || 0), "IDR")}</div>
                   <div className="text-xs text-muted-foreground">{g._count} transactions</div>
                 </div>
               </div>

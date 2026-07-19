@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { formatDate } from "@/lib/utils";
-import Link from "next/link";
 import LeadKanbanColumn from "@/components/admin/LeadKanbanColumn";
+import LeadIntakeForm from "@/components/admin/LeadIntakeForm";
 
 export default async function AdminLeadsPage() {
   const leads = await prisma.jobLead.findMany({
@@ -36,6 +35,7 @@ export default async function AdminLeadsPage() {
       </div>
 
       {/* Kanban board — horizontal scroll on mobile */}
+      <div className="mb-6"><LeadIntakeForm /></div>
       <div className="flex gap-4 overflow-x-auto pb-4">
         {PIPELINE.map((stage) => (
           <LeadKanbanColumn key={stage} stage={stage} leads={JSON.parse(JSON.stringify(byStage[stage]))} />

@@ -4,7 +4,8 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import Link from "next/link";
 import AdminOrderActions from "@/components/admin/AdminOrderActions";
 
-export default async function AdminOrderDetailPage({ params }: { params: { orderId: string } }) {
+export default async function AdminOrderDetailPage(props: { params: Promise<{ orderId: string }> }) {
+  const params = await props.params;
   const order = await prisma.order.findUnique({
     where: { id: params.orderId },
     include: {
@@ -22,7 +23,6 @@ export default async function AdminOrderDetailPage({ params }: { params: { order
 
   if (!order) notFound();
 
-  const totalAiCost = order.aiUsageLogs.reduce((s, l) => s + Number(l.costUsd), 0);
   const totalCost = order.costLogs.reduce((s, l) => s + Number(l.amount), 0);
   const invoice = order.invoices[0];
 
@@ -38,7 +38,6 @@ export default async function AdminOrderDetailPage({ params }: { params: { order
           "bg-white/5 text-muted-foreground"
         }`}>{order.status.replace(/_/g, " ")}</span>
       </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main column */}
         <div className="lg:col-span-2 space-y-6">

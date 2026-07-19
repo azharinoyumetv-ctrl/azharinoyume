@@ -1,10 +1,10 @@
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -19,67 +19,90 @@ model User {
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 
-  orders          Order[]
-  invoices        Invoice[]
-  testimonials    Testimonial[]
-  adminActions    AdminAction[]
-  adminApprovals  AdminApproval[]
+  orders            Order[]
+  invoices          Invoice[]
+  testimonials      Testimonial[]
+  adminActions      AdminAction[]
+  adminApprovals    AdminApproval[]
+  accounts          Account[]
+  sessions          Session[]
+  wallet            Wallet?
+  checkoutQuotes    CheckoutQuote[]
+  payments          Payment[]
+  subscriptions     Subscription[]
+  creditLots        CreditLot[]
+  creditEntries     CreditLedgerEntry[]
+  reservations      CreditReservation[]
+  uploadedAssets    UploadedAsset[]
+  auditEvents       AuditEvent[]        @relation("AuditActor")
+  assignedReviews   ReviewTask[]        @relation("ReviewAssignee")
+  gigDrafts         GigDraft[]
+  pushSubscriptions PushSubscription[]
+  notifications     Notification[]
 
   @@map("users")
 }
 
 model Order {
-  id                    String   @id @default(uuid())
-  orderNumber           String   @unique @map("order_number")
-  userId                String?  @map("user_id")
-  customerEmail         String   @map("customer_email")
-  customerName          String?  @map("customer_name")
-  customerCompany       String?  @map("customer_company")
-  package               String
-  status                String   @default("draft")
-  purpose               String?
-  visualStyle           String?  @map("visual_style")
-  mood                  String?
-  editingPace           String?  @map("editing_pace")
-  colorGrade            String?  @map("color_grade")
-  captionStyle          String?  @map("caption_style")
-  musicStyle            String?  @map("music_style")
-  platform              String?
-  aspectRatio           String?  @map("aspect_ratio")
-  resolution            String   @default("1080p")
-  frameRate             String   @default("30fps") @map("frame_rate")
-  exportFormat          String   @default("MP4") @map("export_format")
-  compression           String   @default("balanced")
-  customerPromptOriginal String? @map("customer_prompt_original")
-  customerPromptLanguage String? @map("customer_prompt_language")
-  customerPromptEn      String?  @map("customer_prompt_en")
-  addOns                Json     @default("[]") @map("add_ons")
-  totalPrice            Decimal  @map("total_price") @db.Decimal(10, 2)
-  currency              String   @default("USD")
-  manualReviewRequired  Boolean  @default(false) @map("manual_review_required")
-  adminApproved         Boolean  @default(false) @map("admin_approved")
-  queuePosition         Int?     @map("queue_position")
-  revisionCount         Int      @default(0) @map("revision_count")
-  maxRevisions          Int      @default(1) @map("max_revisions")
-  createdAt             DateTime @default(now()) @map("created_at")
-  updatedAt             DateTime @updatedAt @map("updated_at")
+  id                     String   @id @default(uuid())
+  orderNumber            String   @unique @map("order_number")
+  userId                 String?  @map("user_id")
+  customerEmail          String   @map("customer_email")
+  customerName           String?  @map("customer_name")
+  customerCompany        String?  @map("customer_company")
+  package                String
+  status                 String   @default("draft")
+  purpose                String?
+  visualStyle            String?  @map("visual_style")
+  mood                   String?
+  editingPace            String?  @map("editing_pace")
+  colorGrade             String?  @map("color_grade")
+  captionStyle           String?  @map("caption_style")
+  musicStyle             String?  @map("music_style")
+  platform               String?
+  aspectRatio            String?  @map("aspect_ratio")
+  resolution             String   @default("1080p")
+  frameRate              String   @default("30fps") @map("frame_rate")
+  exportFormat           String   @default("MP4") @map("export_format")
+  compression            String   @default("balanced")
+  customerPromptOriginal String?  @map("customer_prompt_original")
+  customerPromptLanguage String?  @map("customer_prompt_language")
+  customerPromptEn       String?  @map("customer_prompt_en")
+  addOns                 Json     @default("[]") @map("add_ons")
+  totalPrice             Decimal  @map("total_price") @db.Decimal(10, 2)
+  currency               String   @default("USD")
+  manualReviewRequired   Boolean  @default(false) @map("manual_review_required")
+  adminApproved          Boolean  @default(false) @map("admin_approved")
+  queuePosition          Int?     @map("queue_position")
+  revisionCount          Int      @default(0) @map("revision_count")
+  maxRevisions           Int      @default(1) @map("max_revisions")
+  createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @updatedAt @map("updated_at")
+  quoteId                String?  @unique @map("quote_id")
+  estimatedCredits       Int      @default(0) @map("estimated_credits")
+  actualCredits          Int      @default(0) @map("actual_credits")
+  idempotencyKey         String?  @unique @map("idempotency_key")
 
-  user             User?            @relation(fields: [userId], references: [id])
-  invoices         Invoice[]
-  uploadedAssets   UploadedAsset[]
-  r2Files          R2File[]
-  editBriefs       EditBrief[]
-  renders          Render[]
-  revisions        Revision[]
-  deliveryLinks    DeliveryLink[]
-  costLogs         CostLog[]
-  aiUsageLogs      AiUsageLog[]
-  renderCostLogs   RenderCostLog[]
-  storageCostLogs  StorageCostLog[]
-  ledgerEntries    LedgerEntry[]
-  profitReport     ProfitReport?
-  queueJobs        QueueJob[]
+  user                User?                @relation(fields: [userId], references: [id])
+  invoices            Invoice[]
+  uploadedAssets      UploadedAsset[]
+  r2Files             R2File[]
+  editBriefs          EditBrief[]
+  renders             Render[]
+  revisions           Revision[]
+  deliveryLinks       DeliveryLink[]
+  costLogs            CostLog[]
+  aiUsageLogs         AiUsageLog[]
+  renderCostLogs      RenderCostLog[]
+  storageCostLogs     StorageCostLog[]
+  ledgerEntries       LedgerEntry[]
+  profitReport        ProfitReport?
+  queueJobs           QueueJob[]
   paymentTransactions PaymentTransaction[]
+  quote               CheckoutQuote?       @relation(fields: [quoteId], references: [id])
+  reservations        CreditReservation[]
+  reviewTasks         ReviewTask[]
+  draftLead           JobLead?
 
   @@map("orders")
 }
@@ -104,13 +127,13 @@ model Invoice {
   pdfR2Key         String?   @map("pdf_r2_key")
   createdAt        DateTime  @default(now()) @map("created_at")
 
-  order        Order          @relation(fields: [orderId], references: [id])
-  user         User?          @relation(fields: [userId], references: [id])
-  items        InvoiceItem[]
-  transactions PaymentTransaction[]
+  order           Order                   @relation(fields: [orderId], references: [id])
+  user            User?                   @relation(fields: [userId], references: [id])
+  items           InvoiceItem[]
+  transactions    PaymentTransaction[]
   reconciliations PaymentReconciliation[]
-  refunds      Refund[]
-  ledgerEntries LedgerEntry[]
+  refunds         Refund[]
+  ledgerEntries   LedgerEntry[]
 
   @@map("invoices")
 }
@@ -129,44 +152,50 @@ model InvoiceItem {
 }
 
 model PaymentProvider {
-  id       String  @id @default(uuid())
-  name     String  @unique
-  enabled  Boolean @default(false)
-  mode     String  @default("auto")
-  regions  Json    @default("[]")
-  config   Json    @default("{}")
+  id      String  @id @default(uuid())
+  name    String  @unique
+  enabled Boolean @default(false)
+  mode    String  @default("auto")
+  regions Json    @default("[]")
+  config  Json    @default("{}")
 
   @@map("payment_providers")
 }
 
 model PaymentTransaction {
-  id                  String    @id @default(uuid())
-  invoiceId           String    @map("invoice_id")
-  orderId             String    @map("order_id")
-  provider            String
+  id                   String   @id @default(uuid())
+  invoiceId            String   @map("invoice_id")
+  orderId              String   @map("order_id")
+  provider             String
   gatewayTransactionId String?  @unique @map("gateway_transaction_id")
-  amount              Decimal   @db.Decimal(10, 2)
-  currency            String
-  status              String
-  rawWebhook          Json?     @map("raw_webhook")
-  adminApprovedBy     String?   @map("admin_approved_by")
-  createdAt           DateTime  @default(now()) @map("created_at")
+  amount               Decimal  @db.Decimal(10, 2)
+  currency             String
+  status               String
+  rawWebhook           Json?    @map("raw_webhook")
+  adminApprovedBy      String?  @map("admin_approved_by")
+  createdAt            DateTime @default(now()) @map("created_at")
 
-  invoice Invoice @relation(fields: [invoiceId], references: [id])
-  order   Order   @relation(fields: [orderId], references: [id])
+  invoice        Invoice                @relation(fields: [invoiceId], references: [id])
+  order          Order                  @relation(fields: [orderId], references: [id])
   reconciliation PaymentReconciliation?
 
   @@map("payment_transactions")
 }
 
 model PaymentGatewayEvent {
-  id          String   @id @default(uuid())
-  provider    String
-  eventType   String   @map("event_type")
-  rawPayload  Json     @map("raw_payload")
-  processed   Boolean  @default(false)
-  createdAt   DateTime @default(now()) @map("created_at")
+  id              String    @id @default(uuid())
+  provider        String
+  eventType       String    @map("event_type")
+  rawPayload      Json      @map("raw_payload")
+  processed       Boolean   @default(false)
+  providerEventId String?   @map("provider_event_id")
+  headersHash     String?   @map("headers_hash")
+  signatureValid  Boolean   @default(false) @map("signature_valid")
+  processedAt     DateTime? @map("processed_at")
+  failureReason   String?   @map("failure_reason")
+  createdAt       DateTime  @default(now()) @map("created_at")
 
+  @@unique([provider, providerEventId])
   @@map("payment_gateway_events")
 }
 
@@ -201,17 +230,25 @@ model Refund {
 }
 
 model UploadedAsset {
-  id          String   @id @default(uuid())
-  orderId     String   @map("order_id")
-  r2Key       String   @map("r2_key")
-  fileName    String?  @map("file_name")
-  fileSizeBytes BigInt? @map("file_size_bytes")
-  mimeType    String?  @map("mime_type")
-  assetType   String   @map("asset_type")
-  cloudUrl    String?  @map("cloud_url")
-  createdAt   DateTime @default(now()) @map("created_at")
+  id             String    @id @default(uuid())
+  orderId        String    @map("order_id")
+  userId         String?   @map("user_id")
+  r2Key          String    @map("r2_key")
+  fileName       String?   @map("file_name")
+  fileSizeBytes  BigInt?   @map("file_size_bytes")
+  mimeType       String?   @map("mime_type")
+  assetType      String    @map("asset_type")
+  cloudUrl       String?   @map("cloud_url")
+  status         String    @default("CREATED")
+  checksumSha256 String?   @map("checksum_sha256")
+  durationMs     Int?      @map("duration_ms")
+  verifiedAt     DateTime? @map("verified_at")
+  expiresAt      DateTime? @map("expires_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
 
-  order Order @relation(fields: [orderId], references: [id])
+  order         Order          @relation(fields: [orderId], references: [id])
+  user          User?          @relation(fields: [userId], references: [id])
+  uploadSession UploadSession?
 
   @@map("uploaded_assets")
 }
@@ -231,14 +268,14 @@ model R2File {
 }
 
 model EditBrief {
-  id               String   @id @default(uuid())
-  orderId          String   @map("order_id")
-  promptOriginal   String?  @map("prompt_original")
-  promptLanguage   String?  @map("prompt_language")
-  promptEn         String?  @map("prompt_en")
-  structuredBrief  Json?    @map("structured_brief")
-  r2Key            String?  @map("r2_key")
-  createdAt        DateTime @default(now()) @map("created_at")
+  id              String   @id @default(uuid())
+  orderId         String   @map("order_id")
+  promptOriginal  String?  @map("prompt_original")
+  promptLanguage  String?  @map("prompt_language")
+  promptEn        String?  @map("prompt_en")
+  structuredBrief Json?    @map("structured_brief")
+  r2Key           String?  @map("r2_key")
+  createdAt       DateTime @default(now()) @map("created_at")
 
   order Order @relation(fields: [orderId], references: [id])
 
@@ -256,9 +293,16 @@ model Render {
   durationSeconds Int?      @map("duration_seconds")
   outputR2Key     String?   @map("output_r2_key")
   errorLog        String?   @map("error_log")
+  idempotencyKey  String?   @unique @map("idempotency_key")
+  progress        Int       @default(0)
+  reservedCredits Int       @default(0) @map("reserved_credits")
+  actualCredits   Int       @default(0) @map("actual_credits")
+  outputChecksum  String?   @map("output_checksum")
+  leaseExpiresAt  DateTime? @map("lease_expires_at")
 
-  order          Order          @relation(fields: [orderId], references: [id])
+  order          Order           @relation(fields: [orderId], references: [id])
   renderCostLogs RenderCostLog[]
+  attempts       RenderAttempt[]
 
   @@map("renders")
 }
@@ -305,14 +349,16 @@ model CostLog {
 }
 
 model AiUsageLog {
-  id           String   @id @default(uuid())
-  orderId      String?  @map("order_id")
-  model        String
-  purpose      String
-  inputTokens  Int      @map("input_tokens")
-  outputTokens Int      @map("output_tokens")
-  costUsd      Decimal  @map("cost_usd") @db.Decimal(10, 6)
-  createdAt    DateTime @default(now()) @map("created_at")
+  id            String   @id @default(uuid())
+  orderId       String?  @map("order_id")
+  model         String
+  provider      String   @default("anthropic")
+  promptVersion String?  @map("prompt_version")
+  purpose       String
+  inputTokens   Int      @map("input_tokens")
+  outputTokens  Int      @map("output_tokens")
+  costUsd       Decimal  @map("cost_usd") @db.Decimal(10, 6)
+  createdAt     DateTime @default(now()) @map("created_at")
 
   order Order? @relation(fields: [orderId], references: [id])
 
@@ -320,13 +366,13 @@ model AiUsageLog {
 }
 
 model RenderCostLog {
-  id                  String   @id @default(uuid())
-  renderId            String   @map("render_id")
-  orderId             String   @map("order_id")
-  worker              String
-  durationSeconds     Int?     @map("duration_seconds")
-  estimatedCostUsd    Decimal  @map("estimated_cost_usd") @db.Decimal(10, 4)
-  createdAt           DateTime @default(now()) @map("created_at")
+  id               String   @id @default(uuid())
+  renderId         String   @map("render_id")
+  orderId          String   @map("order_id")
+  worker           String
+  durationSeconds  Int?     @map("duration_seconds")
+  estimatedCostUsd Decimal  @map("estimated_cost_usd") @db.Decimal(10, 4)
+  createdAt        DateTime @default(now()) @map("created_at")
 
   render Render @relation(fields: [renderId], references: [id])
   order  Order  @relation(fields: [orderId], references: [id])
@@ -363,20 +409,20 @@ model LedgerEntry {
 }
 
 model ProfitReport {
-  id               String   @id @default(uuid())
-  orderId          String   @unique @map("order_id")
-  grossRevenue     Decimal  @map("gross_revenue") @db.Decimal(10, 2)
-  gatewayFee       Decimal  @map("gateway_fee") @db.Decimal(10, 2)
-  netReceived      Decimal  @map("net_received") @db.Decimal(10, 2)
-  aiCost           Decimal  @map("ai_cost") @db.Decimal(10, 4)
-  renderCost       Decimal  @map("render_cost") @db.Decimal(10, 4)
-  storageCost      Decimal  @map("storage_cost") @db.Decimal(10, 4)
-  revisionCost     Decimal  @map("revision_cost") @db.Decimal(10, 4)
-  totalDirectCost  Decimal  @map("total_direct_cost") @db.Decimal(10, 4)
-  grossProfit      Decimal  @map("gross_profit") @db.Decimal(10, 2)
-  profitMargin     Decimal  @map("profit_margin") @db.Decimal(5, 2)
-  costCapUsedPct   Decimal  @map("cost_cap_used_pct") @db.Decimal(5, 2)
-  calculatedAt     DateTime @default(now()) @map("calculated_at")
+  id              String   @id @default(uuid())
+  orderId         String   @unique @map("order_id")
+  grossRevenue    Decimal  @map("gross_revenue") @db.Decimal(10, 2)
+  gatewayFee      Decimal  @map("gateway_fee") @db.Decimal(10, 2)
+  netReceived     Decimal  @map("net_received") @db.Decimal(10, 2)
+  aiCost          Decimal  @map("ai_cost") @db.Decimal(10, 4)
+  renderCost      Decimal  @map("render_cost") @db.Decimal(10, 4)
+  storageCost     Decimal  @map("storage_cost") @db.Decimal(10, 4)
+  revisionCost    Decimal  @map("revision_cost") @db.Decimal(10, 4)
+  totalDirectCost Decimal  @map("total_direct_cost") @db.Decimal(10, 4)
+  grossProfit     Decimal  @map("gross_profit") @db.Decimal(10, 2)
+  profitMargin    Decimal  @map("profit_margin") @db.Decimal(5, 2)
+  costCapUsedPct  Decimal  @map("cost_cap_used_pct") @db.Decimal(5, 2)
+  calculatedAt    DateTime @default(now()) @map("calculated_at")
 
   order Order @relation(fields: [orderId], references: [id])
 
@@ -413,21 +459,25 @@ model QueueJob {
 }
 
 model JobLead {
-  id              String   @id @default(uuid())
-  source          String
-  sourceUrl       String?  @map("source_url")
-  title           String
-  description     String?
-  budgetMin       Decimal? @map("budget_min") @db.Decimal(10, 2)
-  budgetMax       Decimal? @map("budget_max") @db.Decimal(10, 2)
-  currency        String?
-  deadline        String?
-  score           Decimal? @db.Decimal(5, 2)
-  scoreBreakdown  Json?    @map("score_breakdown")
-  pipelineStatus  String   @default("new_lead") @map("pipeline_status")
-  createdAt       DateTime @default(now()) @map("created_at")
+  id             String   @id @default(uuid())
+  source         String
+  sourceUrl      String?  @map("source_url")
+  title          String
+  description    String?
+  budgetMin      Decimal? @map("budget_min") @db.Decimal(10, 2)
+  budgetMax      Decimal? @map("budget_max") @db.Decimal(10, 2)
+  currency       String?
+  deadline       String?
+  score          Decimal? @db.Decimal(5, 2)
+  scoreBreakdown Json?    @map("score_breakdown")
+  pipelineStatus String   @default("new_lead") @map("pipeline_status")
+  rawSnapshot    Json?    @map("raw_snapshot")
+  matchedKeyword String?  @map("matched_keyword")
+  draftOrderId   String?  @unique @map("draft_order_id")
+  createdAt      DateTime @default(now()) @map("created_at")
 
-  proposals ProposalDraft[]
+  proposals  ProposalDraft[]
+  draftOrder Order?          @relation(fields: [draftOrderId], references: [id])
 
   @@map("job_leads")
 }
@@ -449,19 +499,19 @@ model ProposalDraft {
 }
 
 model Testimonial {
-  id                 String   @id @default(uuid())
-  orderId            String   @map("order_id")
-  userId             String?  @map("user_id")
-  reviewText         String?  @map("review_text")
-  consentShowVideo   Boolean  @default(false) @map("consent_show_video")
-  consentShowPrompt  Boolean  @default(false) @map("consent_show_prompt")
-  consentHideName    Boolean  @default(false) @map("consent_hide_name")
-  consentHideBrand   Boolean  @default(false) @map("consent_hide_brand")
-  status             String   @default("pending")
-  published          Boolean  @default(false)
-  showcaseR2Key      String?  @map("showcase_r2_key")
-  adminId            String?  @map("admin_id")
-  createdAt          DateTime @default(now()) @map("created_at")
+  id                String   @id @default(uuid())
+  orderId           String   @map("order_id")
+  userId            String?  @map("user_id")
+  reviewText        String?  @map("review_text")
+  consentShowVideo  Boolean  @default(false) @map("consent_show_video")
+  consentShowPrompt Boolean  @default(false) @map("consent_show_prompt")
+  consentHideName   Boolean  @default(false) @map("consent_hide_name")
+  consentHideBrand  Boolean  @default(false) @map("consent_hide_brand")
+  status            String   @default("pending")
+  published         Boolean  @default(false)
+  showcaseR2Key     String?  @map("showcase_r2_key")
+  adminId           String?  @map("admin_id")
+  createdAt         DateTime @default(now()) @map("created_at")
 
   user User? @relation(fields: [userId], references: [id])
 
@@ -494,4 +544,432 @@ model AdminApproval {
   admin User @relation(fields: [adminId], references: [id])
 
   @@map("admin_approvals")
+}
+
+model Account {
+  id                String  @id @default(uuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refreshToken      String? @map("refresh_token") @db.Text
+  accessToken       String? @map("access_token") @db.Text
+  expiresAt         Int?    @map("expires_at")
+  tokenType         String? @map("token_type")
+  scope             String?
+  idToken           String? @map("id_token") @db.Text
+  sessionState      String? @map("session_state")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model PricingProduct {
+  id           String   @id @default(uuid())
+  key          String   @unique
+  kind         String
+  name         String
+  usdCents     Int      @map("usd_cents")
+  credits      Int
+  intervalDays Int?     @map("interval_days")
+  active       Boolean  @default(true)
+  sortOrder    Int      @default(0) @map("sort_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  quotes CheckoutQuote[]
+
+  @@map("pricing_products")
+}
+
+model FxRate {
+  id            String   @id
+  baseCurrency  String   @map("base_currency")
+  quoteCurrency String   @map("quote_currency")
+  rate          Decimal  @db.Decimal(16, 6)
+  version       Int      @default(1)
+  effectiveAt   DateTime @map("effective_at")
+  updatedBy     String?  @map("updated_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@unique([baseCurrency, quoteCurrency])
+  @@map("fx_rates")
+}
+
+model CheckoutQuote {
+  id             String   @id @default(uuid())
+  userId         String   @map("user_id")
+  productId      String   @map("product_id")
+  usdCents       Int      @map("usd_cents")
+  idrAmount      Int      @map("idr_amount")
+  fxRate         Decimal  @map("fx_rate") @db.Decimal(16, 6)
+  fxRateVersion  Int      @map("fx_rate_version")
+  credits        Int
+  status         String   @default("OPEN")
+  idempotencyKey String   @unique @map("idempotency_key")
+  expiresAt      DateTime @map("expires_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  user     User           @relation(fields: [userId], references: [id])
+  product  PricingProduct @relation(fields: [productId], references: [id])
+  payments Payment[]
+  order    Order?
+
+  @@index([userId, status])
+  @@map("checkout_quotes")
+}
+
+model Payment {
+  id                   String    @id @default(uuid())
+  userId               String    @map("user_id")
+  quoteId              String    @map("quote_id")
+  subscriptionId       String?   @map("subscription_id")
+  provider             String
+  providerPaymentId    String?   @map("provider_payment_id")
+  referenceId          String    @unique @map("reference_id")
+  idempotencyKey       String    @unique @map("idempotency_key")
+  status               String    @default("CREATED")
+  usdCents             Int       @map("usd_cents")
+  idrAmount            Int       @map("idr_amount")
+  currency             String    @default("IDR")
+  paymentTokenId       String?   @map("payment_token_id")
+  networkTransactionId String?   @map("network_transaction_id")
+  metadata             Json      @default("{}")
+  paidAt               DateTime? @map("paid_at")
+  expiresAt            DateTime? @map("expires_at")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  user         User            @relation(fields: [userId], references: [id])
+  quote        CheckoutQuote   @relation(fields: [quoteId], references: [id])
+  subscription Subscription?   @relation(fields: [subscriptionId], references: [id])
+  events       PaymentEvent[]
+  creditLots   CreditLot[]
+  refunds      PaymentRefund[]
+
+  @@unique([provider, providerPaymentId])
+  @@index([userId, status])
+  @@map("payments")
+}
+
+model PaymentEvent {
+  id              String    @id @default(uuid())
+  paymentId       String?   @map("payment_id")
+  provider        String
+  providerEventId String    @map("provider_event_id")
+  eventType       String    @map("event_type")
+  headersHash     String    @map("headers_hash")
+  signatureValid  Boolean   @default(false) @map("signature_valid")
+  payload         Json
+  status          String    @default("RECEIVED")
+  failureReason   String?   @map("failure_reason")
+  receivedAt      DateTime  @default(now()) @map("received_at")
+  processedAt     DateTime? @map("processed_at")
+
+  payment Payment? @relation(fields: [paymentId], references: [id])
+
+  @@unique([provider, providerEventId])
+  @@index([status, receivedAt])
+  @@map("payment_events")
+}
+
+model Subscription {
+  id                 String    @id @default(uuid())
+  userId             String    @map("user_id")
+  productKey         String    @map("product_key")
+  status             String    @default("PENDING")
+  provider           String    @default("xendit")
+  paymentTokenId     String?   @map("payment_token_id")
+  currentPeriodStart DateTime? @map("current_period_start")
+  currentPeriodEnd   DateTime? @map("current_period_end")
+  nextBillingAt      DateTime? @map("next_billing_at")
+  retryCount         Int       @default(0) @map("retry_count")
+  cancelAtPeriodEnd  Boolean   @default(false) @map("cancel_at_period_end")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  user       User        @relation(fields: [userId], references: [id])
+  payments   Payment[]
+  creditLots CreditLot[]
+
+  @@index([status, nextBillingAt])
+  @@map("subscriptions")
+}
+
+model Wallet {
+  id               String   @id @default(uuid())
+  userId           String   @unique @map("user_id")
+  availableCredits Int      @default(0) @map("available_credits")
+  reservedCredits  Int      @default(0) @map("reserved_credits")
+  version          Int      @default(0)
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  user         User                @relation(fields: [userId], references: [id])
+  lots         CreditLot[]
+  entries      CreditLedgerEntry[]
+  reservations CreditReservation[]
+
+  @@map("wallets")
+}
+
+model CreditLot {
+  id               String    @id @default(uuid())
+  walletId         String    @map("wallet_id")
+  userId           String    @map("user_id")
+  paymentId        String?   @map("payment_id")
+  subscriptionId   String?   @map("subscription_id")
+  type             String
+  issuedCredits    Int       @map("issued_credits")
+  remainingCredits Int       @map("remaining_credits")
+  expiresAt        DateTime? @map("expires_at")
+  status           String    @default("ACTIVE")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  wallet       Wallet              @relation(fields: [walletId], references: [id])
+  user         User                @relation(fields: [userId], references: [id])
+  payment      Payment?            @relation(fields: [paymentId], references: [id])
+  subscription Subscription?       @relation(fields: [subscriptionId], references: [id])
+  entries      CreditLedgerEntry[]
+
+  @@unique([paymentId])
+  @@index([walletId, status, expiresAt])
+  @@map("credit_lots")
+}
+
+model CreditReservation {
+  id              String   @id @default(uuid())
+  walletId        String   @map("wallet_id")
+  userId          String   @map("user_id")
+  orderId         String   @map("order_id")
+  idempotencyKey  String   @unique @map("idempotency_key")
+  status          String   @default("ACTIVE")
+  reservedCredits Int      @map("reserved_credits")
+  consumedCredits Int      @default(0) @map("consumed_credits")
+  expiresAt       DateTime @map("expires_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  wallet  Wallet              @relation(fields: [walletId], references: [id])
+  user    User                @relation(fields: [userId], references: [id])
+  order   Order               @relation(fields: [orderId], references: [id])
+  entries CreditLedgerEntry[]
+
+  @@index([walletId, status])
+  @@map("credit_reservations")
+}
+
+model CreditLedgerEntry {
+  id             String   @id @default(uuid())
+  walletId       String   @map("wallet_id")
+  userId         String   @map("user_id")
+  lotId          String?  @map("lot_id")
+  reservationId  String?  @map("reservation_id")
+  entryType      String   @map("entry_type")
+  amount         Int
+  availableAfter Int      @map("available_after")
+  reservedAfter  Int      @map("reserved_after")
+  idempotencyKey String   @unique @map("idempotency_key")
+  metadata       Json     @default("{}")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  wallet      Wallet             @relation(fields: [walletId], references: [id])
+  user        User               @relation(fields: [userId], references: [id])
+  lot         CreditLot?         @relation(fields: [lotId], references: [id])
+  reservation CreditReservation? @relation(fields: [reservationId], references: [id])
+
+  @@index([walletId, createdAt])
+  @@map("credit_ledger_entries")
+}
+
+model PaymentRefund {
+  id               String   @id @default(uuid())
+  paymentId        String   @map("payment_id")
+  providerRefundId String?  @unique @map("provider_refund_id")
+  status           String   @default("PENDING")
+  idrAmount        Int      @map("idr_amount")
+  creditsReversed  Int      @map("credits_reversed")
+  reason           String?
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  payment Payment @relation(fields: [paymentId], references: [id])
+
+  @@map("payment_refunds")
+}
+
+model UploadSession {
+  id               String   @id @default(uuid())
+  assetId          String   @unique @map("asset_id")
+  userId           String   @map("user_id")
+  orderId          String   @map("order_id")
+  providerUploadId String   @map("provider_upload_id")
+  status           String   @default("CREATED")
+  partSizeBytes    Int      @map("part_size_bytes")
+  totalSizeBytes   BigInt   @map("total_size_bytes")
+  expectedParts    Int      @map("expected_parts")
+  expiresAt        DateTime @map("expires_at")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  asset UploadedAsset @relation(fields: [assetId], references: [id])
+  parts UploadPart[]
+
+  @@index([userId, status])
+  @@map("upload_sessions")
+}
+
+model UploadPart {
+  id         String   @id @default(uuid())
+  sessionId  String   @map("session_id")
+  partNumber Int      @map("part_number")
+  etag       String?
+  sizeBytes  Int?     @map("size_bytes")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  session UploadSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, partNumber])
+  @@map("upload_parts")
+}
+
+model RenderAttempt {
+  id           String    @id @default(uuid())
+  renderId     String    @map("render_id")
+  attempt      Int
+  workerJobId  String    @unique @map("worker_job_id")
+  status       String    @default("QUEUED")
+  progress     Int       @default(0)
+  outputR2Key  String?   @map("output_r2_key")
+  checksum     String?
+  errorCode    String?   @map("error_code")
+  errorMessage String?   @map("error_message")
+  startedAt    DateTime? @map("started_at")
+  heartbeatAt  DateTime? @map("heartbeat_at")
+  completedAt  DateTime? @map("completed_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  render Render @relation(fields: [renderId], references: [id])
+
+  @@unique([renderId, attempt])
+  @@map("render_attempts")
+}
+
+model ReviewTask {
+  id         String    @id @default(uuid())
+  orderId    String    @map("order_id")
+  assigneeId String?   @map("assignee_id")
+  reason     String
+  riskScore  Int       @default(0) @map("risk_score")
+  status     String    @default("OPEN")
+  resolution String?
+  createdAt  DateTime  @default(now()) @map("created_at")
+  resolvedAt DateTime? @map("resolved_at")
+
+  order    Order @relation(fields: [orderId], references: [id])
+  assignee User? @relation("ReviewAssignee", fields: [assigneeId], references: [id])
+
+  @@index([status, riskScore])
+  @@map("review_tasks")
+}
+
+model AuditEvent {
+  id         String   @id @default(uuid())
+  actorId    String?  @map("actor_id")
+  action     String
+  targetType String   @map("target_type")
+  targetId   String?  @map("target_id")
+  ipHash     String?  @map("ip_hash")
+  metadata   Json     @default("{}")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  actor User? @relation("AuditActor", fields: [actorId], references: [id])
+
+  @@index([targetType, targetId])
+  @@map("audit_events")
+}
+
+model FeatureFlag {
+  key         String   @id
+  enabled     Boolean  @default(false)
+  description String?
+  config      Json     @default("{}")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("feature_flags")
+}
+
+model GigDraft {
+  id            String    @id @default(uuid())
+  createdById   String    @map("created_by_id")
+  platform      String
+  title         String
+  description   String
+  pricing       Json      @default("{}")
+  tags          Json      @default("[]")
+  faq           Json      @default("[]")
+  status        String    @default("DRAFT")
+  aiProvider    String?   @map("ai_provider")
+  aiModel       String?   @map("ai_model")
+  promptVersion String?   @map("prompt_version")
+  submittedAt   DateTime? @map("submitted_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  createdBy User @relation(fields: [createdById], references: [id])
+
+  @@index([platform, status])
+  @@map("gig_drafts")
+}
+
+model PushSubscription {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  endpoint  String    @unique @db.Text
+  p256dh    String
+  auth      String
+  expiresAt DateTime? @map("expires_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
+}
+
+model Notification {
+  id        String    @id @default(uuid())
+  userId    String?   @map("user_id")
+  type      String
+  title     String
+  body      String
+  channels  Json      @default("[]")
+  status    String    @default("PENDING")
+  metadata  Json      @default("{}")
+  createdAt DateTime  @default(now()) @map("created_at")
+  sentAt    DateTime? @map("sent_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("notifications")
 }
