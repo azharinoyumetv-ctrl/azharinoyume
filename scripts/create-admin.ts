@@ -3,7 +3,7 @@
  * npx tsx scripts/create-admin.ts
  */
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "../src/generated/prisma/client";
+import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcrypt";
 import * as readline from "readline";
 

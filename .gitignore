@@ -37,3 +37,6 @@ npm-debug.log*
 # Build cache
 tsconfig.tsbuildinfo
 next-env.d.ts
+.npm-cache/
+.open-next/
+.wrangler/

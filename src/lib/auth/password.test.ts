@@ -1,4 +1,4 @@
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { describe, expect, it } from "vitest";
 import { parseLoginCredentials, verifyPasswordHash } from "./password";
 

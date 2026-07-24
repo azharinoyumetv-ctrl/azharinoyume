@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { generateInvoiceNumber, formatCurrency, formatDate } from "@/lib/utils";
-import type { Order } from "@/generated/prisma/client";
+import type { Order } from "@prisma/client";
 
 interface InvoiceLineItem {
   description: string;

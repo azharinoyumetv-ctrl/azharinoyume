@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { Prisma } from "@/generated/prisma/client";
+import { Prisma } from "@prisma/client";
 import { apiError, requireAdmin } from "@/lib/api/authz";
 import { prisma } from "@/lib/prisma";
 

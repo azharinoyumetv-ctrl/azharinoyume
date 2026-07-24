@@ -1,0 +1,71 @@
+name: Cloudflare Worker
+
+on:
+  pull_request:
+  push:
+    branches:
+      - codex/cloudflare-worker-migration
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: Deploy the already-validated Worker
+        required: true
+        type: boolean
+        default: false
+
+concurrency:
+  group: cloudflare-worker-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  DATABASE_URL: postgresql://invalid:invalid@127.0.0.1:1/invalid
+  NEXTAUTH_SECRET: ci-only-secret-not-used-at-runtime
+  NEXTAUTH_URL: http://localhost:3000
+  NEXT_PUBLIC_APP_URL: http://localhost:3000
+  ORIGIN_SERVICE_SECRET: ci-only-origin-secret
+  PUPPETEER_SKIP_DOWNLOAD: "true"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run cf:build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: open-next-worker
+          path: .open-next
+          include-hidden-files: true
+          retention-days: 7
+
+  deploy:
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: cloudflare-production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: open-next-worker
+          path: .open-next
+      - run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

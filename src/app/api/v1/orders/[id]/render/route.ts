@@ -3,7 +3,7 @@ import { apiError, ApiError, requireOrderAccess } from "@/lib/api/authz";
 import { calculateRenderCredits } from "@/lib/billing/quotes";
 import { reserveCredits } from "@/lib/billing/wallet";
 import { prisma } from "@/lib/prisma";
-import { getRenderQueue } from "@/lib/queue/queues";
+import { enqueueRenderJob } from "@/lib/origin/client";
 import { R2Keys } from "@/lib/storage/r2";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     try {
       const reservation = await reserveCredits(order.userId!, id, credits, `render:${key}`);
       await prisma.order.update({ where: { id }, data: { status: "QUEUED", estimatedCredits: credits } });
-      await getRenderQueue().add("render-video", { orderId: id, renderId: render.id, reservationId: reservation.id }, { jobId: render.id });
+      await enqueueRenderJob({ orderId: id, renderId: render.id, reservationId: reservation.id });
       return NextResponse.json({ renderId: render.id, status: "QUEUED", reservedCredits: credits }, { status: 202 });
     } catch (error) {
       await prisma.render.update({ where: { id: render.id }, data: { status: "FAILED", errorLog: error instanceof Error ? error.message : "Credit reservation failed" } });

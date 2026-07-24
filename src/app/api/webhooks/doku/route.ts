@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { grantPaidCredits, reversePaymentCredits } from "@/lib/billing/wallet";
-import { Prisma } from "@/generated/prisma/client";
+import { Prisma } from "@prisma/client";
 import { verifyDokuWebhook } from "@/lib/payment/doku";
 import { prisma } from "@/lib/prisma";
 import { sha256 } from "@/lib/security/crypto";

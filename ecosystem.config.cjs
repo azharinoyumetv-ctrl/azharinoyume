@@ -13,6 +13,8 @@ module.exports = {
         NEXTAUTH_URL: process.env.NEXTAUTH_URL,
         NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
         REDIS_URL: process.env.REDIS_URL || "redis://127.0.0.1:6379/1",
+        ORIGIN_BRIDGE_PORT: process.env.ORIGIN_BRIDGE_PORT || 4200,
+        ORIGIN_SERVICE_SECRET: process.env.ORIGIN_SERVICE_SECRET,
       },
       max_memory_restart: "768M",
       restart_delay: 3000,

@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { buildInvoiceHtml } from "@/lib/invoice/generate";
+import { renderInvoicePdf } from "@/lib/origin/client";
 import { r2, BUCKET } from "@/lib/storage/r2";
 import { PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -55,23 +56,11 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
     })),
   };
 
-  let pdfBuffer: Buffer;
+  let pdfBuffer: Uint8Array;
   try {
-    const puppeteer = await import("puppeteer");
-    const browser = await puppeteer.default.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    });
-    const page = await browser.newPage();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const html = buildInvoiceHtml(invoiceData as any);
-    await page.setContent(html, { waitUntil: "networkidle0" });
-    pdfBuffer = (await page.pdf({
-      format: "A4",
-      printBackground: true,
-      margin: { top: "20mm", bottom: "20mm", left: "20mm", right: "20mm" },
-    })) as unknown as Buffer;
-    await browser.close();
+    pdfBuffer = await renderInvoicePdf(html);
   } catch (err) {
     console.error("[invoice-pdf] Puppeteer failed:", err);
     // Fallback: serve HTML
@@ -90,7 +79,7 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
     })
   );
 
-  return new NextResponse(new Uint8Array(pdfBuffer), {
+  return new NextResponse(pdfBuffer.buffer as ArrayBuffer, {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename="invoice-${invoice.invoiceNumber}.pdf"`,

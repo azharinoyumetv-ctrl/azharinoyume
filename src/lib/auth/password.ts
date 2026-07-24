@@ -1,4 +1,4 @@
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { z } from "zod";
 
 const DUMMY_PASSWORD_HASH = "$2b$12$.IPLl2uA3J.vGLVqi/esnuFwgod10Jzj85JQdL993Plat52x6X5aC";
