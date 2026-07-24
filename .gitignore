@@ -41,3 +41,4 @@ next-env.d.ts
 .open-next/
 .wrangler/
 .gh-cache/
+.wrangler-config/
