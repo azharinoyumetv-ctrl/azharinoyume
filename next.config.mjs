@@ -10,7 +10,13 @@ const nextConfig = {
       { protocol: "https", hostname: "*.azharinoyume.cloud" },
     ],
   },
-  serverExternalPackages: ["@prisma/client", ".prisma/client", "@prisma/adapter-pg", "pg"],
+  serverExternalPackages: [
+    "@prisma/client",
+    ".prisma/client",
+    "@prisma/adapter-pg",
+    "pg",
+    "pg-cloudflare",
+  ],
 };
 
 export default withNextIntl(nextConfig);
