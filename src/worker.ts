@@ -2,16 +2,10 @@
 import { startWorker } from "@/lib/queue/worker";
 import { runMaintenance } from "@/lib/maintenance";
 import { dispatchPendingProductionJobs } from "@/lib/production/pipeline";
-import {
-  bootstrapOpportunityEngine,
-  runScheduledOpportunityDiscovery,
-} from "@/lib/opportunities/engine";
+import { runScheduledOpportunityDiscovery } from "@/lib/opportunities/engine";
 
 const worker = startWorker();
 runMaintenance().catch((error) => console.error("[maintenance] Initial run failed", error));
-bootstrapOpportunityEngine().catch((error) =>
-  console.error("[opportunities] Bootstrap failed", error),
-);
 dispatchPendingProductionJobs().catch((error) =>
   console.error("[production] Initial dispatch failed", error),
 );
