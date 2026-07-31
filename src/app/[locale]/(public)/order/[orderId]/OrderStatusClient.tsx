@@ -34,7 +34,7 @@ const STATUS_STEPS = [
 const STATUS_ORDER = STATUS_STEPS.map((step) => step.key);
 
 type Gateway = {
-  name: "doku" | "xendit" | "payoneer";
+  name: "doku" | "xendit" | "midtrans" | "payoneer";
   label: string;
   mode: "auto" | "manual";
 };

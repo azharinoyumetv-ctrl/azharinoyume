@@ -6,6 +6,7 @@ function gatewayFeeRate(provider: string, channel: string) {
   );
   if (Number.isFinite(configured) && configured >= 0) return configured / 100;
   if (provider === "xendit") return channel === "QRIS" ? 0.0181 : 0.05;
+  if (provider === "midtrans") return 0.04;
   if (provider === "doku") return 0.04;
   if (provider === "payoneer") return 0.045;
   return 0.05;

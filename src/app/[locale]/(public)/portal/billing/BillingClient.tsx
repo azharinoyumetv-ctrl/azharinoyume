@@ -5,7 +5,7 @@ import Image from "next/image";
 import QRCode from "qrcode";
 
 type Product = { key: string; kind: string; name: string; usdCents: number; credits: number };
-type Gateway = { name: "doku" | "xendit" | "payoneer"; label: string; supports: string[]; mode: "auto" | "manual" };
+type Gateway = { name: "doku" | "xendit" | "midtrans" | "payoneer"; label: string; supports: string[]; mode: "auto" | "manual" };
 type Action = { type: "REDIRECT"; url: string } | { type: "QR"; qrString: string } | { type: "NONE" };
 
 export default function BillingClient({ initialWallet, products, gateways, subscriptions, payments }: { initialWallet: number; products: Product[]; gateways: Gateway[]; subscriptions: Array<{ id: string; productKey: string; status: string; nextBillingAt: string | null; cancelAtPeriodEnd: boolean }>; payments: Array<{ id: string; provider: string; status: string; usdCents: number; idrAmount: number; currency: string; createdAt: string }> }) {

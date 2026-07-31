@@ -28,7 +28,7 @@ export default async function AdminPaymentsPage() {
   return (
     <div>
       <div className="mb-6 flex flex-col items-start justify-between gap-4 sm:mb-8 sm:flex-row sm:items-end">
-        <div><h1 className="text-3xl font-black sm:text-4xl">Payments</h1><p className="mt-1 text-sm text-muted-foreground">DOKU, Xendit v3, and reconciled Payoneer payments</p></div>
+        <div><h1 className="text-3xl font-black sm:text-4xl">Payments</h1><p className="mt-1 text-sm text-muted-foreground">DOKU, Xendit v3, Midtrans Snap, and reconciled Payoneer payments</p></div>
         {rejectedEvents > 0 && <div className="px-3 py-2 rounded-xl bg-red-500/10 text-red-300 text-sm">{rejectedEvents} rejected webhook event{rejectedEvents === 1 ? "" : "s"} in 24h</div>}
       </div>
       <div className="glass border border-white/5 rounded-2xl overflow-hidden">

@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 const FAQS = [
   { q: "How does pricing work?", a: "Buy a one-time credit pack or choose a recurring creator plan. Before checkout, the server converts the USD catalog price to IDR and locks the quote for 15 minutes." },
-  { q: "What payment methods do you accept?", a: "The available methods are controlled by the platform administrator. DOKU supports Indonesian Checkout, Xendit v3 supports QRIS and e-wallets, and Payoneer can be enabled for hosted-link payments that are credited after verification. Recurring plans remain limited to tokenized Xendit cards after merchant activation." },
+  { q: "What payment methods do you accept?", a: "The available methods are controlled by the platform administrator. DOKU supports Indonesian Checkout, Xendit v3 supports QRIS and e-wallets, Midtrans Snap supports Indonesian cards, bank transfer, QRIS, and e-wallet checkout, and Payoneer can be enabled for hosted-link payments that are credited after verification. Recurring plans remain limited to tokenized Xendit cards after merchant activation." },
   { q: "When are credits charged?", a: "Credits are reserved before rendering and consumed only after a non-empty output is verified in private storage. If every automatic attempt fails, the reservation is released." },
   { q: "What file formats do you accept?", a: "Most common video formats are accepted, up to 10 GB. The server inspects the uploaded media with FFprobe before it can enter the render queue." },
   { q: "How long does delivery take?", a: "Timing depends on source duration, resolution, and queue depth. You can track the durable render state from upload verification through draft review." },

@@ -3,12 +3,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { apiError, ApiError, requireUser } from "@/lib/api/authz";
 import { createDokuCheckout } from "@/lib/payment/doku";
+import { createMidtransPayment } from "@/lib/payment/midtrans";
 import { createPayoneerPayment } from "@/lib/payment/payoneer";
 import { requirePaymentProvider } from "@/lib/payment/providers";
 import { createXenditPackPayment, createXenditRecurringPayment } from "@/lib/payment/xendit";
 import { prisma } from "@/lib/prisma";
 
-const Schema = z.object({ quoteId: z.string().uuid(), gateway: z.enum(["doku", "xendit", "payoneer"]), channel: z.string().optional(), paymentTokenId: z.string().min(10).optional() });
+const Schema = z.object({ quoteId: z.string().uuid(), gateway: z.enum(["doku", "xendit", "midtrans", "payoneer"]), channel: z.string().optional(), paymentTokenId: z.string().min(10).optional() });
 
 function storedAction(metadata: unknown) {
   if (!metadata || typeof metadata !== "object" || !("action" in metadata)) return { type: "NONE" };
@@ -43,6 +44,8 @@ export async function POST(request: NextRequest) {
     try {
       const result = input.gateway === "doku"
         ? await createDokuCheckout({ referenceId, amount: quote.idrAmount, customer: { name: user.name, email: user.email } })
+        : input.gateway === "midtrans"
+          ? await createMidtransPayment({ referenceId, amount: quote.idrAmount, customer: { name: user.name, email: user.email } })
         : input.gateway === "payoneer"
           ? await createPayoneerPayment({ referenceId, usdCents: quote.usdCents, customerEmail: user.email }, provider.checkoutUrl)
           : isSubscription
