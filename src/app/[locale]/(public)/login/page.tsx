@@ -8,6 +8,8 @@ import { Eye, EyeOff, KeyRound, Loader2, Mail } from "lucide-react";
 
 type LoginMode = "password" | "magic";
 const subscribeToHost = () => () => {};
+const emailLinkEnabled =
+  process.env.NEXT_PUBLIC_ENABLE_EMAIL_LOGIN === "true";
 
 function safeCallbackUrl(value: string | null, fallback: string) {
   return value?.startsWith("/") && !value.startsWith("//") ? value : fallback;
@@ -16,7 +18,9 @@ function safeCallbackUrl(value: string | null, fallback: string) {
 export default function LoginPage() {
   const searchParams = useSearchParams();
   const [mode, setMode] = useState<LoginMode>(() =>
-    searchParams.get("mode") === "magic" ? "magic" : "password",
+    emailLinkEnabled && searchParams.get("mode") === "magic"
+      ? "magic"
+      : "password",
   );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -73,9 +77,9 @@ export default function LoginPage() {
         </div>
 
         <div className="dashboard-panel overflow-hidden p-2">
-          <div className="grid grid-cols-2 gap-1 rounded-xl bg-black/30 p-1" role="tablist" aria-label="Sign-in method">
+          <div className={`grid ${emailLinkEnabled ? "grid-cols-2" : "grid-cols-1"} gap-1 rounded-xl bg-black/30 p-1`} role="tablist" aria-label="Sign-in method">
             <button type="button" role="tab" aria-selected={mode === "password"} onClick={() => changeMode("password")} className={`flex min-h-12 items-center justify-center gap-2 rounded-lg text-sm font-semibold transition-colors ${mode === "password" ? "bg-white/10 text-white" : "text-white/35 hover:text-white/65"}`}><KeyRound className="h-4 w-4" /> Password</button>
-            <button type="button" role="tab" aria-selected={mode === "magic"} onClick={() => changeMode("magic")} className={`flex min-h-12 items-center justify-center gap-2 rounded-lg text-sm font-semibold transition-colors ${mode === "magic" ? "bg-white/10 text-white" : "text-white/35 hover:text-white/65"}`}><Mail className="h-4 w-4" /> Email link</button>
+            {emailLinkEnabled && <button type="button" role="tab" aria-selected={mode === "magic"} onClick={() => changeMode("magic")} className={`flex min-h-12 items-center justify-center gap-2 rounded-lg text-sm font-semibold transition-colors ${mode === "magic" ? "bg-white/10 text-white" : "text-white/35 hover:text-white/65"}`}><Mail className="h-4 w-4" /> Email link</button>}
           </div>
 
           <div className="p-4 sm:p-6">

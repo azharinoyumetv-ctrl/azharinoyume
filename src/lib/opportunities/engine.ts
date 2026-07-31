@@ -340,8 +340,10 @@ async function saveOpportunity(
 }
 
 export async function bootstrapOpportunityEngine() {
-  await Promise.all([
-    prisma.sourceConnector.upsert({
+  await prisma.$transaction(async (transaction) => {
+    await transaction.$executeRaw`SELECT pg_advisory_xact_lock(487965321)`;
+
+    await transaction.sourceConnector.upsert({
       where: { name: "Remotive Public API" },
       create: {
         name: "Remotive Public API",
@@ -361,13 +363,14 @@ export async function bootstrapOpportunityEngine() {
         },
       },
       update: {},
-    }),
-    ...[
+    });
+
+    for (const [name, connectorType, permissionMethod] of [
       ["Upwork", "official_api", "official_api_approval_required"],
       ["Indeed", "partner_feed", "partner_or_publisher_access_required"],
       ["Fiverr", "manual_alert", "manual_or_official_access_required"],
-    ].map(([name, connectorType, permissionMethod]) =>
-      prisma.sourceConnector.upsert({
+    ] as const) {
+      await transaction.sourceConnector.upsert({
         where: { name },
         create: {
           name,
@@ -382,48 +385,49 @@ export async function bootstrapOpportunityEngine() {
           configuration: {},
         },
         update: {},
-      }),
-    ),
-  ]);
-  const campaignCount = await prisma.searchCampaign.count();
-  if (!campaignCount) {
-    await prisma.searchCampaign.create({
-      data: {
-        name: "DagangOS supported opportunities",
-        enabled: true,
-        categories: [
-          "video editing",
-          "website development",
-          "automation",
-          "business software",
-        ],
-        keywords: [
-          "video",
-          "youtube",
-          "website",
-          "web developer",
-          "automation",
-          "n8n",
-          "software",
-          "api",
-          "ecommerce",
-          "content",
-        ],
-        excludedKeywords: [
-          "unpaid",
-          "volunteer only",
-          "commission only",
-          "adult content",
-        ],
-        locations: ["worldwide", "remote"],
-        languages: ["en"],
-        sources: ["remotive"],
-        productRoutes: CAPABILITY_ROUTES.map((route) => route.route),
-        minimumMargin: 20,
-        schedule: "every 4 hours",
-      },
-    });
-  }
+      });
+    }
+
+    const campaignCount = await transaction.searchCampaign.count();
+    if (!campaignCount) {
+      await transaction.searchCampaign.create({
+        data: {
+          name: "DagangOS supported opportunities",
+          enabled: true,
+          categories: [
+            "video editing",
+            "website development",
+            "automation",
+            "business software",
+          ],
+          keywords: [
+            "video",
+            "youtube",
+            "website",
+            "web developer",
+            "automation",
+            "n8n",
+            "software",
+            "api",
+            "ecommerce",
+            "content",
+          ],
+          excludedKeywords: [
+            "unpaid",
+            "volunteer only",
+            "commission only",
+            "adult content",
+          ],
+          locations: ["worldwide", "remote"],
+          languages: ["en"],
+          sources: ["remotive"],
+          productRoutes: CAPABILITY_ROUTES.map((route) => route.route),
+          minimumMargin: 20,
+          schedule: "every 4 hours",
+        },
+      });
+    }
+  });
 }
 
 export async function runOpportunityDiscovery(options?: { force?: boolean }) {

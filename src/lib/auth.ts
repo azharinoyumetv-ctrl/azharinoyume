@@ -57,7 +57,7 @@ export const authOptions: NextAuthOptions = {
         return { id: user.id, email: user.email, name: user.name, role: user.role };
       },
     }),
-    EmailProvider({
+    ...(process.env.NEXT_PUBLIC_ENABLE_EMAIL_LOGIN === "true" ? [EmailProvider({
       from: process.env.EMAIL_FROM || "noreply@azharinoyume.cloud",
       maxAge: 15 * 60,
       async sendVerificationRequest({ identifier, url, provider }) {
@@ -74,7 +74,7 @@ export const authOptions: NextAuthOptions = {
         });
         if (result.error) throw new Error(result.error.message);
       },
-    }),
+    })] : []),
   ],
   callbacks: {
     async jwt({ token, user }) {
