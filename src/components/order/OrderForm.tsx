@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { signIn, useSession } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createSHA256 } from "hash-wasm";
@@ -98,6 +98,10 @@ function initialState(searchParams: ReturnType<typeof useSearchParams>): FormSta
 export default function OrderForm() {
   const { status } = useSession();
   const searchParams = useSearchParams();
+  const orderQuery = searchParams.toString();
+  const orderCallbackUrl = `/order${orderQuery ? `?${orderQuery}` : ""}`;
+  const passwordLoginUrl = `/login?mode=password&callbackUrl=${encodeURIComponent(orderCallbackUrl)}`;
+  const emailLoginUrl = `/login?mode=magic&callbackUrl=${encodeURIComponent(orderCallbackUrl)}`;
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<FormState>(() => initialState(searchParams));
   const [file, setFile] = useState<File | null>(null);
@@ -303,14 +307,20 @@ export default function OrderForm() {
           Your brief, raw footage, invoice, drafts, and delivery stay attached to
           one private project.
         </p>
-        <button
-          onClick={() =>
-            signIn("email", { callbackUrl: window.location.href })
-          }
-          className="gold-gradient mt-8 min-h-14 w-full rounded-xl px-7 font-bold text-black sm:w-auto"
-        >
-          Email me a sign-in link
-        </button>
+        <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+          <Link
+            href={emailLoginUrl}
+            className="gold-gradient inline-flex min-h-14 w-full items-center justify-center rounded-xl px-7 font-bold text-black sm:w-auto"
+          >
+            Continue with email
+          </Link>
+          <Link
+            href={passwordLoginUrl}
+            className="inline-flex min-h-14 w-full items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-7 font-bold text-white transition-colors hover:bg-white/[0.08] sm:w-auto"
+          >
+            Use a password
+          </Link>
+        </div>
       </div>
     );
   }
@@ -492,75 +502,7 @@ export default function OrderForm() {
                     onChange={(value) => update("editingPace", value)}
                   />
                   <SelectField
-                    label="Color treatment"
-                    value={form.colorGrade}
-                    options={COLOR_GRADES}
-                    onChange={(value) => update("colorGrade", value)}
-                  />
-                  <SelectField
-                    label="Captions"
-                    value={form.captionStyle}
-                    options={CAPTION_STYLES}
-                    onChange={(value) => update("captionStyle", value)}
-                  />
-                  <SelectField
-                    label="Music direction"
-                    value={form.musicStyle}
-                    options={MUSIC_STYLES}
-                    onChange={(value) => update("musicStyle", value)}
-                  />
-                  <SelectField
-                    label="Creative freedom"
-                    value={form.creativeFreedom}
-                    options={[
-                      ["low", "Low — follow my instructions closely"],
-                      ["balanced", "Balanced — decide within my rules"],
-                      ["high", "High — choose the strongest story"],
-                    ]}
-                    onChange={(value) =>
-                      update(
-                        "creativeFreedom",
-                        value as FormState["creativeFreedom"],
-                      )
-                    }
-                  />
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <TextAreaField
-                    label="Must include"
-                    value={form.mandatoryContent}
-                    onChange={(value) => update("mandatoryContent", value)}
-                    placeholder="Required people, dialogue, scenes, products, logos, or CTA. Write “No specific moments” if unrestricted."
-                  />
-                  <TextAreaField
-                    label="Must exclude"
-                    value={form.excludedContent}
-                    onChange={(value) => update("excludedContent", value)}
-                    placeholder="Damaged product, private people, sensitive dialogue, shaky footage. Write “Nothing specific” if none."
-                  />
-                </div>
-                <TextAreaField
-                  label="Describe the result in your own words"
-                  value={form.prompt}
-                  onChange={(value) => update("prompt", value)}
-                  rows={5}
-                  placeholder="Example: Open with the strongest emotional moment, build a warm cinematic story, keep family reactions, remove repeated or shaky shots, and finish with the couple leaving together."
-                />
-                <button
-                  type="button"
-                  onClick={() =>
-                    update(
-                      "prompt",
-                      `Create a ${form.mood} ${form.purpose.toLowerCase()} for ${form.audience}. Use the ${STYLE_DIRECTIONS.find((style) => style.slug === form.visualStyle)?.title.toLowerCase()} direction with ${form.editingPace.replaceAll("-", " ")} pacing and a ${form.colorGrade.replaceAll("-", " ")} color treatment. Prioritize ${form.storyPriority || "the strongest story in the footage"}. Include ${form.mandatoryContent || "the most meaningful moments"} and exclude ${form.excludedContent || "unusable, repeated, or distracting footage"}.`,
-                    )
-                  }
-                  className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-violet-300/15 bg-violet-300/[.06] px-4 text-sm font-bold text-violet-200"
-                >
-                  <Sparkles className="h-4 w-4" /> Build a prompt from my
-                  selections
-                </button>
-              </div>
-            )}
+          …1010 tokens truncated…           )}
 
             {step === 2 && (
               <div className="space-y-6">
