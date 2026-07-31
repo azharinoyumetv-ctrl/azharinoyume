@@ -15,6 +15,10 @@ export const metadata: Metadata = {
   metadataBase: new URL(appUrl),
   title: "Azyume Cut AI — AI Video Editing Studio",
   description: "Premium AI video editing delivered worldwide. Cinematic quality, fast delivery.",
+  icons: {
+    icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
+    shortcut: "/favicon.svg",
+  },
   openGraph: {
     title: "Azyume Cut AI — AI Video Editing Studio",
     description: "Premium AI video editing delivered worldwide.",

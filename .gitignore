@@ -40,5 +40,8 @@ npm-debug.log*
 # Build cache
 .npm-cache/
 .gh-cache/
+.playwright-browsers/
+.playwright-cli/
+.playwright-local/
 tsconfig.tsbuildinfo
 next-env.d.ts

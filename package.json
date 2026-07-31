@@ -69,6 +69,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@playwright/cli": "^0.1.17",
     "@types/node": "^24.10.0",
     "@types/nodemailer": "^6.4.17",
     "@types/pg": "^8.15.5",

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Azyume Studio">
+  <defs>
+    <linearGradient id="bg" x1="8" y1="4" x2="56" y2="60" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f4c95d"/>
+      <stop offset="1" stop-color="#a66a12"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="#050508"/>
+  <path d="M14 48 27.5 14h9L50 48h-9.5l-2.4-7H25.8l-2.4 7H14Zm14.5-15h6.9L32 22.7 28.5 33Z" fill="url(#bg)"/>
+  <path d="m39 17 10 6-10 6V17Z" fill="#fff" opacity=".92"/>
+</svg>
