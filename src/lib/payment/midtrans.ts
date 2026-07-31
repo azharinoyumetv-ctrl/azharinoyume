@@ -95,6 +95,7 @@ export async function createMidtransPayment(input: {
       Accept: "application/json",
       Authorization: `Basic ${Buffer.from(`${serverKey}:`).toString("base64")}`,
       "Content-Type": "application/json",
+      "X-Override-Notification": `${appUrl}/api/webhooks/midtrans`,
     },
     body: JSON.stringify({
       transaction_details: {

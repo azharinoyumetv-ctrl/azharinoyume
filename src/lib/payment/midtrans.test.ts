@@ -60,6 +60,7 @@ describe("Midtrans Snap", () => {
     expect(url).toBe("https://app.sandbox.midtrans.com/snap/v1/transactions");
     expect(init?.headers).toMatchObject({
       Authorization: `Basic ${Buffer.from("SB-Mid-server-test:").toString("base64")}`,
+      "X-Override-Notification": "http://localhost:3000/api/webhooks/midtrans",
     });
     expect(JSON.parse(String(init?.body))).toMatchObject({
       transaction_details: { order_id: "AZY-order-1", gross_amount: 149_000 },
