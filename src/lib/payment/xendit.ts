@@ -24,6 +24,61 @@ type XenditResponse = {
   id?: unknown;
 };
 
+type XenditWebhookPayload = {
+  payment_request_id?: unknown;
+  id?: unknown;
+  reference_id?: unknown;
+  status?: unknown;
+  request_amount?: unknown;
+  amount?: unknown;
+  paid_amount?: unknown;
+  capture_amount?: unknown;
+  currency?: unknown;
+  payment_token_id?: unknown;
+  network_transaction_id?: unknown;
+  payment_details?: { network_transaction_id?: unknown };
+  created?: unknown;
+  updated?: unknown;
+};
+
+type XenditWebhookEnvelope = XenditWebhookPayload & {
+  event_id?: unknown;
+  event?: unknown;
+  created?: unknown;
+  updated?: unknown;
+  data?: XenditWebhookPayload;
+};
+
+export function parseXenditWebhook(body: XenditWebhookEnvelope) {
+  const payload = body.data && typeof body.data === "object" ? body.data : body;
+  const amountValue = payload.request_amount ?? payload.amount ?? payload.paid_amount ?? payload.capture_amount;
+  const amount = typeof amountValue === "number" || typeof amountValue === "string" ? Number(amountValue) : Number.NaN;
+
+  return {
+    payload,
+    eventId: typeof body.event_id === "string" ? body.event_id : null,
+    eventType: String(body.event || payload.status || "UNKNOWN"),
+    referenceId: typeof payload.reference_id === "string" ? payload.reference_id : null,
+    providerPaymentId:
+      typeof payload.payment_request_id === "string"
+        ? payload.payment_request_id
+        : typeof payload.id === "string" && payload.id.startsWith("pr-")
+          ? payload.id
+          : null,
+    status: String(payload.status || "").toUpperCase(),
+    amount,
+    currency: String(payload.currency || "IDR").toUpperCase(),
+    paymentTokenId: typeof payload.payment_token_id === "string" ? payload.payment_token_id : undefined,
+    networkTransactionId:
+      typeof payload.network_transaction_id === "string"
+        ? payload.network_transaction_id
+        : typeof payload.payment_details?.network_transaction_id === "string"
+          ? payload.payment_details.network_transaction_id
+          : undefined,
+    updated: String(payload.updated || body.updated || body.created || ""),
+  };
+}
+
 async function createPaymentRequest(payload: PaymentRequest, idempotencyKey: string) {
   const key = process.env.XENDIT_SECRET_KEY;
   if (!key) throw new Error("Xendit is not configured");
