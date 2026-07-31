@@ -31,7 +31,7 @@ async function main() {
     console.log("Admin account created.");
   }
 
-  console.log(`Admin: ${email} — Login at https://azharinoyume.cloud/login`);
+  console.log(`Admin: ${email} — Login at https://studio.azharinoyume.cloud/login`);
   await prisma.$disconnect();
 }
 

@@ -1,0 +1,33 @@
+import { ApiError } from "@/lib/api/authz";
+
+export const PRODUCTION_TRANSITIONS: Record<string, readonly string[]> = {
+  AWAITING_PAYMENT: ["ANALYSIS_QUEUED", "CANCELLED", "REFUNDED"],
+  ANALYSIS_QUEUED: ["ANALYZING", "PRODUCTION_REVIEW_REQUIRED", "CANCELLED"],
+  ANALYZING: ["EDIT_PLANNING", "PRODUCTION_REVIEW_REQUIRED", "ANALYSIS_FAILED"],
+  EDIT_PLANNING: [
+    "DRAFT_READY_TO_RENDER",
+    "PRODUCTION_REVIEW_REQUIRED",
+    "PLANNING_FAILED",
+  ],
+  DRAFT_READY_TO_RENDER: ["DRAFT_RENDERING", "PRODUCTION_REVIEW_REQUIRED"],
+  DRAFT_RENDERING: ["QUALITY_CHECK", "RENDER_FAILED"],
+  QUALITY_CHECK: ["DRAFT_REVIEW", "PRODUCTION_REVIEW_REQUIRED", "QA_FAILED"],
+  DRAFT_REVIEW: ["REVISION_REQUESTED", "FINAL_RENDERING"],
+  REVISION_REQUESTED: ["EDIT_PLANNING", "PRODUCTION_REVIEW_REQUIRED"],
+  FINAL_RENDERING: ["FINAL_QUALITY_CHECK", "RENDER_FAILED"],
+  FINAL_QUALITY_CHECK: [
+    "DELIVERED",
+    "PRODUCTION_REVIEW_REQUIRED",
+    "QA_FAILED",
+  ],
+};
+
+export function assertProductionTransition(current: string, next: string) {
+  const allowed = PRODUCTION_TRANSITIONS[current] || [];
+  if (!allowed.includes(next)) {
+    throw new ApiError(
+      409,
+      `Invalid production transition from ${current} to ${next}`,
+    );
+  }
+}

@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
   });
   if (!order) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://azharinoyume.cloud";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://studio.azharinoyume.cloud";
 
   switch (type) {
     case "order_confirmed":

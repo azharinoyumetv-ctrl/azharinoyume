@@ -27,16 +27,16 @@ export function formatDate(date: Date | string): string {
 
 export function getCostCap(pkg: string): number {
   const caps: Record<string, number> = {
-    basic: parseFloat(process.env.COST_CAP_BASIC || "9.80"),
-    plus: parseFloat(process.env.COST_CAP_PLUS || "29.80"),
-    premium: parseFloat(process.env.COST_CAP_PREMIUM || "79.80"),
+    basic: parseFloat(process.env.COST_CAP_BASIC || "3.00"),
+    plus: parseFloat(process.env.COST_CAP_PLUS || "9.00"),
+    premium: parseFloat(process.env.COST_CAP_PREMIUM || "26.00"),
   };
   return caps[pkg] ?? 9.80;
 }
 
 export function getPackagePrice(pkg: string): number {
-  const prices: Record<string, number> = { basic: 49, plus: 149, premium: 399 };
-  return prices[pkg] ?? 49;
+  const prices: Record<string, number> = { basic: 14.99, plus: 44.99, premium: 129.99 };
+  return prices[pkg] ?? 14.99;
 }
 
 export function getMaxRevisions(pkg: string): number {

@@ -6,9 +6,64 @@ const SERIALIZABLE = { isolationLevel: Prisma.TransactionIsolationLevel.Serializ
 
 export async function grantPaidCredits(paymentId: string, providerEventId: string, paymentTokenId?: string, networkTransactionId?: string) {
   return prisma.$transaction(async (tx) => {
-    const payment = await tx.payment.findUnique({ where: { id: paymentId }, include: { quote: { include: { product: true } } } });
+    const payment = await tx.payment.findUnique({ where: { id: paymentId }, include: { quote: { include: { product: true, order: { include: { invoices: { orderBy: { createdAt: "desc" }, take: 1 } } } } } } });
     if (!payment) throw new ApiError(404, "Payment not found");
     if (payment.status === "PAID") return payment;
+    if (payment.quote.product.kind === "PROJECT") {
+      const order = payment.quote.order;
+      const invoice = order?.invoices[0];
+      if (!order || !invoice) throw new ApiError(409, "Project payment is not connected to an invoice");
+      const paidAt = new Date();
+      const updatedPayment = await tx.payment.update({
+        where: { id: payment.id },
+        data: {
+          status: "PAID",
+          paidAt,
+          paymentTokenId: paymentTokenId || payment.paymentTokenId,
+          networkTransactionId: networkTransactionId || payment.networkTransactionId,
+          quote: { update: { status: "PAID" } },
+        },
+      });
+      await tx.invoice.update({
+        where: { id: invoice.id },
+        data: {
+          status: "paid",
+          paidAmount: payment.quote.usdCents / 100,
+          paidAt,
+          paymentMethod: payment.provider,
+          paymentReference: payment.referenceId,
+        },
+      });
+      await tx.order.update({
+        where: { id: order.id },
+        data: { status: "ANALYSIS_QUEUED" },
+      });
+      await tx.queueJob.create({
+        data: {
+          orderId: order.id,
+          jobType: "MEDIA_ANALYSIS",
+          status: "pending",
+          priority: order.package === "premium" ? 20 : order.package === "plus" ? 10 : 0,
+        },
+      });
+      const priorTransaction = await tx.paymentTransaction.findFirst({
+        where: { gatewayTransactionId: payment.providerPaymentId || payment.referenceId },
+      });
+      if (!priorTransaction) {
+        await tx.paymentTransaction.create({
+          data: {
+            invoiceId: invoice.id,
+            orderId: order.id,
+            provider: payment.provider,
+            gatewayTransactionId: payment.providerPaymentId || payment.referenceId,
+            amount: payment.quote.usdCents / 100,
+            currency: "USD",
+            status: "paid",
+          },
+        });
+      }
+      return updatedPayment;
+    }
     const wallet = await tx.wallet.upsert({ where: { userId: payment.userId }, create: { userId: payment.userId }, update: {} });
     const isSubscription = payment.quote.product.kind === "SUBSCRIPTION";
     const lot = await tx.creditLot.create({
@@ -71,8 +126,28 @@ export async function consumeReservation(reservationId: string, actualCredits: n
 
 export async function reversePaymentCredits(paymentId: string, providerEventId: string, reason: "REFUND" | "CHARGEBACK") {
   return prisma.$transaction(async (tx) => {
-    const payment = await tx.payment.findUnique({ where: { id: paymentId } });
+    const payment = await tx.payment.findUnique({ where: { id: paymentId }, include: { quote: { include: { product: true, order: { include: { invoices: { orderBy: { createdAt: "desc" }, take: 1 } } } } } } });
     if (!payment) throw new ApiError(404, "Payment not found");
+    if (payment.quote.product.kind === "PROJECT") {
+      const order = payment.quote.order;
+      const invoice = order?.invoices[0];
+      if (invoice) {
+        await tx.invoice.update({
+          where: { id: invoice.id },
+          data: { status: reason === "REFUND" ? "refunded" : "manual_review_required" },
+        });
+      }
+      if (order) {
+        await tx.order.update({
+          where: { id: order.id },
+          data: {
+            status: reason === "REFUND" ? "REFUNDED" : "PAYMENT_DISPUTED",
+            manualReviewRequired: reason === "CHARGEBACK",
+          },
+        });
+      }
+      return tx.payment.update({ where: { id: paymentId }, data: { status: reason === "REFUND" ? "REFUNDED" : "CHARGEBACK" } });
+    }
     const lot = await tx.creditLot.findUnique({ where: { paymentId } });
     if (!lot || lot.status === "REVERSED") return payment;
     const wallet = await tx.wallet.update({ where: { id: lot.walletId }, data: { availableCredits: { decrement: lot.issuedCredits }, version: { increment: 1 } } });

@@ -34,7 +34,7 @@ export default function Footer() {
         </div>
         <div className="mt-10 flex flex-col items-start justify-between gap-2 border-t border-white/5 pt-6 sm:mt-12 sm:flex-row sm:items-center sm:gap-4 sm:pt-8">
           <div className="text-xs text-muted-foreground">© {new Date().getFullYear()} Azyume Cut AI. All rights reserved.</div>
-          <div className="text-xs text-muted-foreground">azharinoyume.cloud</div>
+          <div className="text-xs text-muted-foreground">studio.azharinoyume.cloud</div>
         </div>
       </div>
     </footer>

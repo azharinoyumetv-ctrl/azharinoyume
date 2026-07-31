@@ -33,9 +33,14 @@ async function getDashboardStats() {
     activeLeads,
     draftGigs,
     recentLeads,
+    proposalDrafts,
+    submittedApplications,
+    wonOpportunities,
+    interviewBlockers,
+    productionReadyContracts,
   ] = await Promise.all([
     prisma.order.count(),
-    prisma.order.count({ where: { status: { in: ["QUEUED", "RENDERING", "DRAFT_REVIEW", "REVISION_REQUESTED"] } } }),
+    prisma.order.count({ where: { status: { in: ["ANALYSIS_QUEUED", "ANALYZING", "EDIT_PLANNING", "DRAFT_READY_TO_RENDER", "DRAFT_RENDERING", "QUALITY_CHECK", "QUEUED", "RENDERING", "DRAFT_REVIEW", "REVISION_REQUESTED", "FINAL_RENDERING", "FINAL_QUALITY_CHECK"] } } }),
     prisma.order.count({ where: { manualReviewRequired: true, adminApproved: false } }),
     prisma.payment.aggregate({ where: { status: "PAID", paidAt: { gte: startOfDay } }, _sum: { idrAmount: true } }),
     prisma.payment.aggregate({ where: { status: "PAID", paidAt: { gte: startOfMonth } }, _sum: { idrAmount: true } }),
@@ -45,6 +50,11 @@ async function getDashboardStats() {
     prisma.jobLead.count({ where: { pipelineStatus: { notIn: ["won", "lost"] } } }),
     prisma.gigDraft.count({ where: { status: "DRAFT" } }),
     prisma.jobLead.findMany({ orderBy: { createdAt: "desc" }, take: 5 }),
+    prisma.proposalDraft.count(),
+    prisma.jobLead.count({ where: { pipelineStatus: { in: ["submitted", "won", "lost"] } } }),
+    prisma.jobLead.count({ where: { pipelineStatus: "won" } }),
+    prisma.customerInterview.count({ where: { OR: [{ status: { not: "completed" } }, { ambiguityScore: { gt: 20 } }] } }),
+    prisma.opportunityContract.count({ where: { status: "ready_for_production" } }),
   ]);
 
   return {
@@ -59,6 +69,11 @@ async function getDashboardStats() {
     activeLeads,
     draftGigs,
     recentLeads,
+    proposalDrafts,
+    submittedApplications,
+    wonOpportunities,
+    interviewBlockers,
+    productionReadyContracts,
   };
 }
 
@@ -83,7 +98,7 @@ export default async function AdminOverviewPage() {
         badge={<StatusPill tone="green" pulse>Review gated</StatusPill>}
         actions={
           <>
-            <Link href="/admin/leads" className="dashboard-action"><BriefcaseBusiness className="h-4 w-4" /> Review leads</Link>
+            <Link href="/admin/opportunities" className="dashboard-action"><BriefcaseBusiness className="h-4 w-4" /> Review opportunities</Link>
             <Link href="/admin/gigs" className="gold-gradient inline-flex min-h-12 items-center justify-center gap-2 rounded-[.875rem] px-4 text-sm font-bold text-black"><Sparkles className="h-4 w-4" /> Create gig draft</Link>
           </>
         }
@@ -111,6 +126,35 @@ export default async function AdminOverviewPage() {
         </div>
       </section>
 
+      <section className="dashboard-panel p-4 sm:p-5">
+        <SectionHeader
+          title="Opportunity-to-production funnel"
+          description="Won work cannot enter production until the customer interview resolves ambiguity and the product specification is approved."
+          action={<Link href="/admin/interviews" className="text-xs font-semibold text-gold-400">Open interviews →</Link>}
+        />
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+          {[
+            { label: "Discovered", value: stats.activeLeads, tone: "text-white" },
+            { label: "Proposals", value: stats.proposalDrafts, tone: "text-violet-300" },
+            { label: "Applied", value: stats.submittedApplications, tone: "text-cyan-300" },
+            { label: "Won", value: stats.wonOpportunities, tone: "text-emerald-300" },
+            { label: "Production ready", value: stats.productionReadyContracts, tone: "text-gold-300" },
+          ].map((item, index) => (
+            <div key={item.label} className="relative rounded-xl border border-white/6 bg-white/[.018] p-3 text-center">
+              <div className={`text-2xl font-black ${item.tone}`}>{item.value}</div>
+              <div className="mt-1 text-[9px] font-bold uppercase tracking-wider text-white/30">{item.label}</div>
+              {index < 4 && <ArrowRight className="absolute -right-2 top-1/2 z-10 hidden h-4 w-4 -translate-y-1/2 text-white/15 sm:block" />}
+            </div>
+          ))}
+        </div>
+        {stats.interviewBlockers > 0 && (
+          <Link href="/admin/interviews" className="mt-3 flex min-h-12 items-center justify-between rounded-xl border border-rose-400/15 bg-rose-400/[.05] px-4 text-sm">
+            <span className="font-semibold text-rose-200">{stats.interviewBlockers} won contract{stats.interviewBlockers === 1 ? "" : "s"} blocked by unresolved intake</span>
+            <ArrowRight className="h-4 w-4 text-rose-300" />
+          </Link>
+        )}
+      </section>
+
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(22rem,.65fr)]">
         <section className="dashboard-panel overflow-hidden">
           <div className="border-b border-white/10 p-4 sm:p-5">
@@ -134,7 +178,7 @@ export default async function AdminOverviewPage() {
             <SectionHeader title="Acquisition inbox" description="Fresh opportunities entering the bot" action={<Link href="/admin/leads" className="text-xs font-semibold text-gold-400">Open board →</Link>} />
             <div className="space-y-2">
               {stats.recentLeads.map((lead) => (
-                <Link key={lead.id} href="/admin/leads" className="flex min-h-16 items-center gap-3 rounded-xl border border-white/5 bg-white/[.018] px-3 py-2.5 transition-colors hover:border-violet-400/20">
+              <Link key={lead.id} href="/admin/opportunities" className="flex min-h-16 items-center gap-3 rounded-xl border border-white/5 bg-white/[.018] px-3 py-2.5 transition-colors hover:border-violet-400/20">
                   <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-violet-400/10 text-violet-300"><BriefcaseBusiness className="h-4 w-4" /></span>
                   <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold text-white/85">{lead.title}</span><span className="mt-1 block text-[10px] uppercase tracking-wider text-white/30">{lead.source} · {lead.pipelineStatus.replace(/_/g, " ")}</span></span>
                   <span className="text-sm font-black text-violet-300">{lead.score == null ? "—" : Number(lead.score).toFixed(0)}</span>

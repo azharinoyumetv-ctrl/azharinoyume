@@ -6,7 +6,7 @@ import {
   CheckCircle2,
   Clapperboard,
   Clock3,
-  Coins,
+  CreditCard,
   Download,
   FolderOpen,
   Plus,
@@ -23,10 +23,20 @@ export const dynamic = "force-dynamic";
 
 const STATUS: Record<string, { label: string; tone: "neutral" | "gold" | "blue" | "violet" | "green" | "red"; progress: number; message: string }> = {
   DRAFT_UPLOAD: { label: "Upload", tone: "neutral", progress: 8, message: "Waiting for your source footage" },
+  AWAITING_PAYMENT: { label: "Payment", tone: "gold", progress: 12, message: "Brief and footage verified; invoice is awaiting payment" },
+  ANALYSIS_QUEUED: { label: "Analysis queued", tone: "gold", progress: 22, message: "Payment confirmed and footage analysis is queued" },
+  ANALYZING: { label: "Analyzing", tone: "blue", progress: 32, message: "The engine is understanding scenes, speech, quality, and highlights" },
+  EDIT_PLANNING: { label: "Planning", tone: "violet", progress: 46, message: "The engine is building the structured edit plan" },
+  DRAFT_READY_TO_RENDER: { label: "Plan ready", tone: "violet", progress: 55, message: "The deterministic timeline is ready for the draft renderer" },
+  DRAFT_RENDERING: { label: "Draft rendering", tone: "blue", progress: 64, message: "The first review draft is rendering" },
+  QUALITY_CHECK: { label: "Quality check", tone: "gold", progress: 72, message: "Technical and brief-conformity checks are running" },
+  PRODUCTION_REVIEW_REQUIRED: { label: "Operator review", tone: "red", progress: 72, message: "The project is paused for a human decision" },
   QUEUED: { label: "Queued", tone: "gold", progress: 24, message: "Credits reserved and project queued" },
   RENDERING: { label: "Rendering", tone: "blue", progress: 56, message: "AI edit is being assembled" },
   DRAFT_REVIEW: { label: "Review ready", tone: "violet", progress: 78, message: "Your draft is ready for feedback" },
   REVISION_REQUESTED: { label: "Revising", tone: "blue", progress: 84, message: "Requested changes are in progress" },
+  FINAL_RENDERING: { label: "Final rendering", tone: "blue", progress: 92, message: "The approved final output is rendering" },
+  FINAL_QUALITY_CHECK: { label: "Final QA", tone: "gold", progress: 97, message: "The final deliverables are being verified" },
   DELIVERED: { label: "Delivered", tone: "green", progress: 100, message: "Final video is ready" },
   RENDER_FAILED: { label: "Needs attention", tone: "red", progress: 100, message: "We are reviewing the render" },
 };
@@ -35,8 +45,7 @@ export default async function PortalPage() {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/login");
 
-  const [orders, wallet] = await Promise.all([
-    prisma.order.findMany({
+  const orders = await prisma.order.findMany({
       where: { userId: session.user.id },
       orderBy: { createdAt: "desc" },
       include: {
@@ -44,12 +53,11 @@ export default async function PortalPage() {
         deliveryLinks: { where: { expiresAt: { gt: new Date() } }, take: 1 },
         renders: { orderBy: { id: "desc" }, take: 1 },
       },
-    }),
-    prisma.wallet.findUnique({ where: { userId: session.user.id } }),
-  ]);
+    });
 
-  const activeOrders = orders.filter((order) => !["DELIVERED", "RENDER_FAILED"].includes(order.status)).length;
+  const activeOrders = orders.filter((order) => !["DELIVERED", "RENDER_FAILED", "REFUNDED", "CANCELLED"].includes(order.status)).length;
   const deliveredOrders = orders.filter((order) => order.status === "DELIVERED").length;
+  const awaitingPayment = orders.filter((order) => order.status === "AWAITING_PAYMENT").length;
   const featured = orders.find((order) => !["DELIVERED", "RENDER_FAILED"].includes(order.status)) || orders[0];
   const featuredStatus = featured ? STATUS[featured.status] || STATUS.DRAFT_UPLOAD : null;
 
@@ -59,18 +67,18 @@ export default async function PortalPage() {
         <DashboardHeader
           eyebrow="Video workspace"
           title="Your creative studio"
-          description={<>Projects, revisions, downloads, and credits in one focused workspace. Signed in as <span className="break-all text-white/75">{session.user.email}</span>.</>}
+          description={<>Briefs, invoices, production status, revisions, and deliveries in one focused workspace. Signed in as <span className="break-all text-white/75">{session.user.email}</span>.</>}
           badge={<StatusPill tone="green" pulse>Private workspace</StatusPill>}
           actions={
             <>
-              <Link href="/portal/billing" className="dashboard-action"><Coins className="h-4 w-4" /> Billing</Link>
+              <Link href="/packages" className="dashboard-action"><CreditCard className="h-4 w-4" /> Packages</Link>
               <Link href="/order" className="gold-gradient inline-flex min-h-12 items-center justify-center gap-2 rounded-[.875rem] px-4 text-sm font-bold text-black"><Plus className="h-4 w-4" /> New project</Link>
             </>
           }
         />
 
         <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <MetricCard label="Available credits" value={(wallet?.availableCredits || 0).toLocaleString()} icon={Coins} tone="gold" detail={`${(wallet?.reservedCredits || 0).toLocaleString()} reserved`} />
+          <MetricCard label="Awaiting payment" value={awaitingPayment} icon={CreditCard} tone="gold" detail="Production remains locked" />
           <MetricCard label="Active projects" value={activeOrders} icon={WandSparkles} tone="blue" detail="In your production queue" />
           <MetricCard label="Delivered" value={deliveredOrders} icon={CheckCircle2} tone="green" detail={`${orders.length} total projects`} />
           <article className="dashboard-panel dashboard-panel-hover col-span-2 flex min-h-[8.5rem] flex-col justify-between p-4 lg:col-span-1 sm:p-5">

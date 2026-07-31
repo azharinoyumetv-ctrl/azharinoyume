@@ -44,46 +44,55 @@ model User {
 }
 
 model Order {
-  id                     String   @id @default(uuid())
-  orderNumber            String   @unique @map("order_number")
-  userId                 String?  @map("user_id")
-  customerEmail          String   @map("customer_email")
-  customerName           String?  @map("customer_name")
-  customerCompany        String?  @map("customer_company")
+  id                     String    @id @default(uuid())
+  orderNumber            String    @unique @map("order_number")
+  userId                 String?   @map("user_id")
+  customerEmail          String    @map("customer_email")
+  customerName           String?   @map("customer_name")
+  customerCompany        String?   @map("customer_company")
   package                String
-  status                 String   @default("draft")
+  status                 String    @default("draft")
   purpose                String?
-  visualStyle            String?  @map("visual_style")
+  audience               String?
+  visualStyle            String?   @map("visual_style")
   mood                   String?
-  editingPace            String?  @map("editing_pace")
-  colorGrade             String?  @map("color_grade")
-  captionStyle           String?  @map("caption_style")
-  musicStyle             String?  @map("music_style")
+  editingPace            String?   @map("editing_pace")
+  colorGrade             String?   @map("color_grade")
+  captionStyle           String?   @map("caption_style")
+  musicStyle             String?   @map("music_style")
+  storyPriority          String?   @map("story_priority")
+  mandatoryContent       String?   @map("mandatory_content")
+  excludedContent        String?   @map("excluded_content")
+  creativeFreedom        String?   @map("creative_freedom")
+  targetDurationSeconds  Int?      @map("target_duration_seconds")
+  briefStatus            String    @default("draft") @map("brief_status")
+  briefAmbiguityScore    Int       @default(100) @map("brief_ambiguity_score")
+  briefConfirmedAt       DateTime? @map("brief_confirmed_at")
   platform               String?
-  aspectRatio            String?  @map("aspect_ratio")
-  resolution             String   @default("1080p")
-  frameRate              String   @default("30fps") @map("frame_rate")
-  exportFormat           String   @default("MP4") @map("export_format")
-  compression            String   @default("balanced")
-  editingMode            String   @default("standard") @map("editing_mode")
-  editorConfig           Json?    @map("editor_config")
-  customerPromptOriginal String?  @map("customer_prompt_original")
-  customerPromptLanguage String?  @map("customer_prompt_language")
-  customerPromptEn       String?  @map("customer_prompt_en")
-  addOns                 Json     @default("[]") @map("add_ons")
-  totalPrice             Decimal  @map("total_price") @db.Decimal(10, 2)
-  currency               String   @default("USD")
-  manualReviewRequired   Boolean  @default(false) @map("manual_review_required")
-  adminApproved          Boolean  @default(false) @map("admin_approved")
-  queuePosition          Int?     @map("queue_position")
-  revisionCount          Int      @default(0) @map("revision_count")
-  maxRevisions           Int      @default(1) @map("max_revisions")
-  createdAt              DateTime @default(now()) @map("created_at")
-  updatedAt              DateTime @updatedAt @map("updated_at")
-  quoteId                String?  @unique @map("quote_id")
-  estimatedCredits       Int      @default(0) @map("estimated_credits")
-  actualCredits          Int      @default(0) @map("actual_credits")
-  idempotencyKey         String?  @unique @map("idempotency_key")
+  aspectRatio            String?   @map("aspect_ratio")
+  resolution             String    @default("1080p")
+  frameRate              String    @default("30fps") @map("frame_rate")
+  exportFormat           String    @default("MP4") @map("export_format")
+  compression            String    @default("balanced")
+  editingMode            String    @default("standard") @map("editing_mode")
+  editorConfig           Json?     @map("editor_config")
+  customerPromptOriginal String?   @map("customer_prompt_original")
+  customerPromptLanguage String?   @map("customer_prompt_language")
+  customerPromptEn       String?   @map("customer_prompt_en")
+  addOns                 Json      @default("[]") @map("add_ons")
+  totalPrice             Decimal   @map("total_price") @db.Decimal(10, 2)
+  currency               String    @default("USD")
+  manualReviewRequired   Boolean   @default(false) @map("manual_review_required")
+  adminApproved          Boolean   @default(false) @map("admin_approved")
+  queuePosition          Int?      @map("queue_position")
+  revisionCount          Int       @default(0) @map("revision_count")
+  maxRevisions           Int       @default(1) @map("max_revisions")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+  quoteId                String?   @unique @map("quote_id")
+  estimatedCredits       Int       @default(0) @map("estimated_credits")
+  actualCredits          Int       @default(0) @map("actual_credits")
+  idempotencyKey         String?   @unique @map("idempotency_key")
 
   user                User?                @relation(fields: [userId], references: [id])
   invoices            Invoice[]
@@ -105,7 +114,12 @@ model Order {
   reservations        CreditReservation[]
   reviewTasks         ReviewTask[]
   draftLead           JobLead?
+  mediaAnalyses       MediaAnalysis[]
+  editPlans           EditPlan[]
+  timelineManifests   TimelineManifest[]
+  qualityChecks       QualityCheck[]
 
+  @@index([briefStatus])
   @@map("orders")
 }
 
@@ -251,6 +265,7 @@ model UploadedAsset {
   order         Order          @relation(fields: [orderId], references: [id])
   user          User?          @relation(fields: [userId], references: [id])
   uploadSession UploadSession?
+  mediaAnalysis MediaAnalysis?
 
   @@map("uploaded_assets")
 }
@@ -270,18 +285,97 @@ model R2File {
 }
 
 model EditBrief {
-  id              String   @id @default(uuid())
-  orderId         String   @map("order_id")
-  promptOriginal  String?  @map("prompt_original")
-  promptLanguage  String?  @map("prompt_language")
-  promptEn        String?  @map("prompt_en")
-  structuredBrief Json?    @map("structured_brief")
-  r2Key           String?  @map("r2_key")
-  createdAt       DateTime @default(now()) @map("created_at")
+  id              String    @id @default(uuid())
+  orderId         String    @map("order_id")
+  version         Int       @default(1)
+  status          String    @default("draft")
+  ambiguityScore  Int       @default(100) @map("ambiguity_score")
+  issues          Json      @default("[]")
+  approvedAt      DateTime? @map("approved_at")
+  promptOriginal  String?   @map("prompt_original")
+  promptLanguage  String?   @map("prompt_language")
+  promptEn        String?   @map("prompt_en")
+  structuredBrief Json?     @map("structured_brief")
+  r2Key           String?   @map("r2_key")
+  createdAt       DateTime  @default(now()) @map("created_at")
 
   order Order @relation(fields: [orderId], references: [id])
 
   @@map("edit_briefs")
+}
+
+model MediaAnalysis {
+  id           String    @id @default(uuid())
+  orderId      String    @map("order_id")
+  assetId      String    @unique @map("asset_id")
+  status       String    @default("processing")
+  manifest     Json      @default("{}")
+  confidence   Decimal?  @db.Decimal(5, 2)
+  issues       Json      @default("[]")
+  modelVersion String?   @map("model_version")
+  completedAt  DateTime? @map("completed_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  order Order         @relation(fields: [orderId], references: [id])
+  asset UploadedAsset @relation(fields: [assetId], references: [id])
+
+  @@index([orderId, status])
+  @@map("media_analyses")
+}
+
+model EditPlan {
+  id           String    @id @default(uuid())
+  orderId      String    @map("order_id")
+  version      Int       @default(1)
+  status       String    @default("draft")
+  plan         Json
+  confidence   Decimal?  @db.Decimal(5, 2)
+  riskFlags    Json      @default("[]") @map("risk_flags")
+  modelVersion String?   @map("model_version")
+  approvedAt   DateTime? @map("approved_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  order    Order             @relation(fields: [orderId], references: [id])
+  timeline TimelineManifest?
+
+  @@unique([orderId, version])
+  @@map("edit_plans")
+}
+
+model TimelineManifest {
+  id            String   @id @default(uuid())
+  orderId       String   @map("order_id")
+  editPlanId    String   @unique @map("edit_plan_id")
+  schemaVersion String   @map("schema_version")
+  manifest      Json
+  checksum      String   @unique
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  order    Order    @relation(fields: [orderId], references: [id])
+  editPlan EditPlan @relation(fields: [editPlanId], references: [id])
+
+  @@map("timeline_manifests")
+}
+
+model QualityCheck {
+  id             String   @id @default(uuid())
+  orderId        String   @map("order_id")
+  renderId       String   @unique @map("render_id")
+  qaType         String   @default("draft") @map("qa_type")
+  status         String
+  checks         Json
+  technicalScore Decimal? @map("technical_score") @db.Decimal(5, 2)
+  creativeScore  Decimal? @map("creative_score") @db.Decimal(5, 2)
+  requiresHuman  Boolean  @default(false) @map("requires_human")
+  completedAt    DateTime @default(now()) @map("completed_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  order  Order  @relation(fields: [orderId], references: [id])
+  render Render @relation(fields: [renderId], references: [id])
+
+  @@index([status, requiresHuman])
+  @@map("quality_checks")
 }
 
 model Render {
@@ -305,6 +399,7 @@ model Render {
   order          Order           @relation(fields: [orderId], references: [id])
   renderCostLogs RenderCostLog[]
   attempts       RenderAttempt[]
+  qualityCheck   QualityCheck?
 
   @@map("renders")
 }
@@ -461,26 +556,52 @@ model QueueJob {
 }
 
 model JobLead {
-  id             String   @id @default(uuid())
-  source         String
-  sourceUrl      String?  @map("source_url")
-  title          String
-  description    String?
-  budgetMin      Decimal? @map("budget_min") @db.Decimal(10, 2)
-  budgetMax      Decimal? @map("budget_max") @db.Decimal(10, 2)
-  currency       String?
-  deadline       String?
-  score          Decimal? @db.Decimal(5, 2)
-  scoreBreakdown Json?    @map("score_breakdown")
-  pipelineStatus String   @default("new_lead") @map("pipeline_status")
-  rawSnapshot    Json?    @map("raw_snapshot")
-  matchedKeyword String?  @map("matched_keyword")
-  draftOrderId   String?  @unique @map("draft_order_id")
-  createdAt      DateTime @default(now()) @map("created_at")
+  id                 String   @id @default(uuid())
+  externalId         String?  @map("external_id")
+  connectorId        String?  @map("connector_id")
+  source             String
+  sourceUrl          String?  @map("source_url")
+  title              String
+  description        String?
+  industry           String?
+  serviceFamily      String?  @map("service_family")
+  category           String?
+  subcategory        String?
+  deliverables       Json     @default("[]")
+  requiredSkills     Json     @default("[]") @map("required_skills")
+  location           String?
+  language           String?
+  engagementModel    String?  @map("engagement_model")
+  budgetType         String?  @map("budget_type")
+  budgetMin          Decimal? @map("budget_min") @db.Decimal(10, 2)
+  budgetMax          Decimal? @map("budget_max") @db.Decimal(10, 2)
+  currency           String?
+  deadline           String?
+  score              Decimal? @db.Decimal(5, 2)
+  legitimacyScore    Decimal? @map("legitimacy_score") @db.Decimal(5, 2)
+  capabilityScore    Decimal? @map("capability_score") @db.Decimal(5, 2)
+  profitabilityScore Decimal? @map("profitability_score") @db.Decimal(5, 2)
+  riskScore          Decimal? @map("risk_score") @db.Decimal(5, 2)
+  productRoute       String?  @map("product_route")
+  routeDecision      String?  @map("route_decision")
+  riskFlags          Json     @default("[]") @map("risk_flags")
+  policyStatus       String   @default("review_required") @map("policy_status")
+  scoreBreakdown     Json?    @map("score_breakdown")
+  pipelineStatus     String   @default("new_lead") @map("pipeline_status")
+  rawSnapshot        Json?    @map("raw_snapshot")
+  matchedKeyword     String?  @map("matched_keyword")
+  draftOrderId       String?  @unique @map("draft_order_id")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
 
   proposals  ProposalDraft[]
-  draftOrder Order?          @relation(fields: [draftOrderId], references: [id])
+  draftOrder Order?                @relation(fields: [draftOrderId], references: [id])
+  connector  SourceConnector?      @relation(fields: [connectorId], references: [id])
+  contracts  OpportunityContract[]
 
+  @@unique([source, externalId])
+  @@index([category, pipelineStatus])
+  @@index([productRoute, pipelineStatus])
   @@map("job_leads")
 }
 
@@ -498,6 +619,132 @@ model ProposalDraft {
   jobLead JobLead @relation(fields: [jobLeadId], references: [id])
 
   @@map("proposal_drafts")
+}
+
+model SourceConnector {
+  id               String    @id @default(uuid())
+  name             String    @unique
+  connectorType    String    @map("connector_type")
+  collectionMethod String    @map("collection_method")
+  permissionMethod String    @map("permission_method")
+  policyStatus     String    @default("review_required") @map("policy_status")
+  health           String    @default("disabled")
+  authStatus       String    @default("not_connected") @map("auth_status")
+  enabled          Boolean   @default(false)
+  allowedActions   Json      @default("[]") @map("allowed_actions")
+  retentionDays    Int?      @map("retention_days")
+  rateLimit        Json      @default("{}") @map("rate_limit")
+  configuration    Json      @default("{}")
+  lastRunAt        DateTime? @map("last_run_at")
+  lastSuccessAt    DateTime? @map("last_success_at")
+  errorRate        Decimal   @default(0) @map("error_rate") @db.Decimal(5, 2)
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  leads JobLead[]
+
+  @@map("source_connectors")
+}
+
+model SearchCampaign {
+  id               String    @id @default(uuid())
+  name             String
+  enabled          Boolean   @default(false)
+  categories       Json      @default("[]")
+  keywords         Json      @default("[]")
+  excludedKeywords Json      @default("[]") @map("excluded_keywords")
+  locations        Json      @default("[]")
+  languages        Json      @default("[]")
+  sources          Json      @default("[]")
+  productRoutes    Json      @default("[]") @map("product_routes")
+  minimumBudget    Decimal?  @map("minimum_budget") @db.Decimal(10, 2)
+  minimumMargin    Decimal?  @map("minimum_margin") @db.Decimal(5, 2)
+  schedule         String?
+  lastRunAt        DateTime? @map("last_run_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  @@map("search_campaigns")
+}
+
+model OpportunityContract {
+  id             String    @id @default(uuid())
+  jobLeadId      String?   @map("job_lead_id")
+  title          String
+  clientName     String?   @map("client_name")
+  clientCompany  String?   @map("client_company")
+  clientEmail    String?   @map("client_email")
+  clientCountry  String?   @map("client_country")
+  source         String?
+  productRoutes  Json      @default("[]") @map("product_routes")
+  status         String    @default("intake_required")
+  agreedRevenue  Decimal?  @map("agreed_revenue") @db.Decimal(10, 2)
+  currency       String    @default("USD")
+  externalFees   Decimal   @default(0) @map("external_fees") @db.Decimal(10, 2)
+  estimatedCost  Decimal?  @map("estimated_cost") @db.Decimal(10, 2)
+  expectedMargin Decimal?  @map("expected_margin") @db.Decimal(5, 2)
+  deadline       DateTime?
+  paymentStatus  String    @default("pending") @map("payment_status")
+  contractRisk   String    @default("unassessed") @map("contract_risk")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  jobLead        JobLead?               @relation(fields: [jobLeadId], references: [id])
+  interview      CustomerInterview?
+  specifications ProductSpecification[]
+
+  @@index([status, createdAt])
+  @@map("opportunity_contracts")
+}
+
+model CustomerInterview {
+  id                     String    @id @default(uuid())
+  contractId             String    @unique @map("contract_id")
+  status                 String    @default("not_started")
+  completionPercent      Int       @default(0) @map("completion_percent")
+  ambiguityScore         Int       @default(100) @map("ambiguity_score")
+  missingAnswers         Json      @default("[]") @map("missing_answers")
+  missingAssets          Json      @default("[]") @map("missing_assets")
+  conflicts              Json      @default("[]")
+  scopeChangeRisk        Decimal   @default(0) @map("scope_change_risk") @db.Decimal(5, 2)
+  transcript             Json      @default("[]")
+  assignedOperatorId     String?   @map("assigned_operator_id")
+  lastCustomerResponseAt DateTime? @map("last_customer_response_at")
+  completedAt            DateTime? @map("completed_at")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+
+  contract       OpportunityContract    @relation(fields: [contractId], references: [id])
+  specifications ProductSpecification[]
+
+  @@index([status, ambiguityScore])
+  @@map("customer_interviews")
+}
+
+model ProductSpecification {
+  id                 String    @id @default(uuid())
+  contractId         String    @map("contract_id")
+  interviewId        String?   @map("interview_id")
+  productRoute       String    @map("product_route")
+  version            Int       @default(1)
+  status             String    @default("draft")
+  requirements       Json      @default("{}")
+  assumptions        Json      @default("[]")
+  acceptanceCriteria Json      @default("[]") @map("acceptance_criteria")
+  estimatedCost      Decimal?  @map("estimated_cost") @db.Decimal(10, 2)
+  quoteAmount        Decimal?  @map("quote_amount") @db.Decimal(10, 2)
+  currency           String    @default("USD")
+  expectedMargin     Decimal?  @map("expected_margin") @db.Decimal(5, 2)
+  immutableHash      String?   @map("immutable_hash")
+  approvedAt         DateTime? @map("approved_at")
+  customerApprovedAt DateTime? @map("customer_approved_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+
+  contract  OpportunityContract @relation(fields: [contractId], references: [id])
+  interview CustomerInterview?  @relation(fields: [interviewId], references: [id])
+
+  @@unique([contractId, productRoute, version])
+  @@map("product_specifications")
 }
 
 model Testimonial {

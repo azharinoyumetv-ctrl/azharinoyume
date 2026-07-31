@@ -10,7 +10,7 @@ type ProviderDefinition = {
   description: string;
   mode: "auto" | "manual";
   regions: string[];
-  supports: Array<"PACK" | "SUBSCRIPTION">;
+  supports: Array<"PACK" | "SUBSCRIPTION" | "PROJECT">;
   defaultEnabled: boolean;
 };
 
@@ -22,7 +22,7 @@ export const PAYMENT_PROVIDER_DEFINITIONS: ProviderDefinition[] = [
     description: "Indonesian Checkout for one-time credit packs.",
     mode: "auto",
     regions: ["ID"],
-    supports: ["PACK"],
+    supports: ["PACK", "PROJECT"],
     defaultEnabled: true,
   },
   {
@@ -32,7 +32,7 @@ export const PAYMENT_PROVIDER_DEFINITIONS: ProviderDefinition[] = [
     description: "QRIS and e-wallet packs, plus token-ready recurring cards.",
     mode: "auto",
     regions: ["ID"],
-    supports: ["PACK", "SUBSCRIPTION"],
+    supports: ["PACK", "SUBSCRIPTION", "PROJECT"],
     defaultEnabled: true,
   },
   {
@@ -42,7 +42,7 @@ export const PAYMENT_PROVIDER_DEFINITIONS: ProviderDefinition[] = [
     description: "Hosted payment link with administrator reconciliation.",
     mode: "manual",
     regions: ["GLOBAL"],
-    supports: ["PACK"],
+    supports: ["PACK", "PROJECT"],
     defaultEnabled: false,
   },
 ];
@@ -97,6 +97,6 @@ export async function requirePaymentProvider(name: PaymentGateway, productKind: 
   const provider = (await getPaymentProviderSettings()).find((item) => item.name === name);
   if (!provider || !provider.enabled) throw new ApiError(409, `${provider?.label || name} is disabled in payment settings`);
   if (!provider.configured) throw new ApiError(503, `${provider.label} is enabled but not configured`);
-  if (!provider.supports.includes(productKind as "PACK" | "SUBSCRIPTION")) throw new ApiError(400, `${provider.label} does not support this product`);
+  if (!provider.supports.includes(productKind as "PACK" | "SUBSCRIPTION" | "PROJECT")) throw new ApiError(400, `${provider.label} does not support this product`);
   return provider;
 }

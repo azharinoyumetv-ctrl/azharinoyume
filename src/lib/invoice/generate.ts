@@ -133,7 +133,7 @@ export function buildInvoiceHtml(invoice: {
   <div>
     <div class="logo">Azyume<span> Cut AI</span></div>
     <div style="font-size:12px;color:#999;margin-top:4px;">AI Video Editing Studio</div>
-    <div style="font-size:12px;color:#999;">azharinoyume.cloud</div>
+    <div style="font-size:12px;color:#999;">studio.azharinoyume.cloud</div>
   </div>
   <div class="invoice-meta">
     <div class="invoice-number">${invoice.invoiceNumber}</div>

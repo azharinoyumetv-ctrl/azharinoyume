@@ -9,14 +9,16 @@ import PwaRegister from "@/components/PwaRegister";
 import ClientProviders from "@/components/ClientProviders";
 
 const inter = Inter({ subsets: ["latin"] });
+const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://studio.azharinoyume.cloud";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(appUrl),
   title: "Azyume Cut AI — AI Video Editing Studio",
   description: "Premium AI video editing delivered worldwide. Cinematic quality, fast delivery.",
   openGraph: {
     title: "Azyume Cut AI — AI Video Editing Studio",
     description: "Premium AI video editing delivered worldwide.",
-    url: "https://azharinoyume.cloud",
+    url: appUrl,
     siteName: "Azyume Cut AI",
     type: "website",
   },

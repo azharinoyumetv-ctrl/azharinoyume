@@ -15,7 +15,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const payment = await prisma.payment.findUnique({ where: { id }, include: { quote: { include: { product: true } } } });
     if (!payment) throw new ApiError(404, "Payment not found");
     if (payment.provider !== "payoneer") throw new ApiError(409, "Only Payoneer payments use manual reconciliation");
-    if (payment.quote.product.kind !== "PACK") throw new ApiError(409, "Manual reconciliation is limited to one-time credit packs");
+    if (!["PACK", "PROJECT"].includes(payment.quote.product.kind)) throw new ApiError(409, "Manual reconciliation is limited to one-time purchases");
     if (payment.status === "PAID") return NextResponse.json({ id: payment.id, status: payment.status });
     if (payment.status !== "PENDING_ACTION") throw new ApiError(409, "Payment is not awaiting reconciliation");
     const duplicate = await prisma.payment.findFirst({ where: { provider: "payoneer", providerPaymentId: confirmationId, id: { not: payment.id } } });

@@ -5,6 +5,9 @@ node_modules/
 
 # Next.js
 .next/
+.open-next/
+.wrangler/
+.wrangler-config/
 out/
 
 # Production
@@ -35,5 +38,7 @@ npm-debug.log*
 *.swp
 
 # Build cache
+.npm-cache/
+.gh-cache/
 tsconfig.tsbuildinfo
 next-env.d.ts

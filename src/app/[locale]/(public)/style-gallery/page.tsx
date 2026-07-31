@@ -3,65 +3,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import InteractiveStyleGrid from "@/components/marketing/InteractiveStyleGrid";
 import { Reveal } from "@/components/marketing/MotionExperience";
-
-const STYLES = [
-  {
-    slug: "cinematic",
-    title: "Cinematic narrative",
-    description:
-      "Measured pacing, shaped contrast, atmospheric sound, and story-led cuts.",
-    meta: ["Narrative", "2.39:1", "Film grain"],
-    position: "0% 0%",
-    category: "Story" as const,
-    featured: true,
-  },
-  {
-    slug: "energetic",
-    title: "Kinetic action",
-    description:
-      "Impact-driven cuts, motion accents, speed ramps, and high-energy timing.",
-    meta: ["Action", "Beat sync", "Motion"],
-    position: "50% 0%",
-    category: "Social" as const,
-    featured: true,
-  },
-  {
-    slug: "product",
-    title: "Luxury product",
-    description:
-      "Tactile detail, controlled highlights, and clean benefit-first composition.",
-    meta: ["Product", "Macro", "Premium"],
-    position: "100% 0%",
-    category: "Brand" as const,
-  },
-  {
-    slug: "documentary",
-    title: "Human documentary",
-    description:
-      "Natural performance, honest pacing, and unobtrusive editorial structure.",
-    meta: ["Interview", "Natural", "Story"],
-    position: "0% 100%",
-    category: "Story" as const,
-  },
-  {
-    slug: "corporate",
-    title: "Editorial corporate",
-    description:
-      "Architectural framing, credible typography, and confident information flow.",
-    meta: ["Brand", "B2B", "Clean"],
-    position: "50% 100%",
-    category: "Brand" as const,
-  },
-  {
-    slug: "social-media",
-    title: "Creator social",
-    description:
-      "Immediate hooks, platform-native framing, and caption-safe composition.",
-    meta: ["Vertical", "Hook", "Captions"],
-    position: "100% 100%",
-    category: "Social" as const,
-  },
-];
+import { STYLE_DIRECTIONS } from "@/lib/production/catalog";
 
 export default async function StyleGalleryPage() {
   const testimonials = await prisma.testimonial.findMany({
@@ -104,7 +46,7 @@ export default async function StyleGalleryPage() {
 
       <section className="px-4 py-10 sm:px-6 sm:py-14 lg:px-8 lg:py-16">
         <div className="mx-auto max-w-7xl">
-          <InteractiveStyleGrid styles={STYLES} />
+          <InteractiveStyleGrid styles={STYLE_DIRECTIONS.map((style) => ({ ...style, meta: [...style.meta] }))} />
         </div>
       </section>
 

@@ -47,9 +47,9 @@ export default function HomePage() {
               <span className="text-white/38">A finished story out.</span>
             </h1>
             <p className="mt-6 max-w-xl text-base leading-7 text-white/48 sm:text-lg">
-              Premium video editing with an operator-reviewed production
-              pipeline—and a real spherical studio for directing 360° footage
-              after the shoot.
+              Upload your raw footage, define the outcome, and receive a
+              tier-controlled finished production with draft review, automated
+              QA, and optional human oversight.
             </p>
             <div className="mt-8 flex flex-col gap-3 min-[440px]:flex-row">
               <MotionCta
@@ -159,21 +159,21 @@ export default function HomePage() {
             {[
               {
                 key: "basic",
-                price: 49,
-                label: "Essential",
+                price: 14.99,
+                label: "Automated short",
                 accent: "border-white/[.08]",
               },
               {
                 key: "plus",
-                price: 149,
-                label: "Studio",
+                price: 44.99,
+                label: "Creator production",
                 accent:
                   "border-amber-300/25 bg-amber-300/[.035] shadow-[0_22px_70px_rgba(212,160,23,.08)]",
               },
               {
                 key: "premium",
-                price: 399,
-                label: "Studio Pro",
+                price: 129.99,
+                label: "Commercial production",
                 accent: "border-violet-300/20 bg-violet-300/[.03]",
               },
             ].map((plan, index) => (
