@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { Eye, EyeOff, KeyRound, Loader2, Mail } from "lucide-react";
 
 type LoginMode = "password" | "magic";
+const subscribeToHost = () => () => {};
 
 function safeCallbackUrl(value: string | null, fallback: string) {
   return value?.startsWith("/") && !value.startsWith("//") ? value : fallback;
@@ -23,6 +24,11 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const canRegister = useSyncExternalStore(
+    subscribeToHost,
+    () => window.location.hostname === "studio.azharinoyume.cloud",
+    () => false,
+  );
 
   async function handlePasswordLogin(event: React.FormEvent) {
     event.preventDefault();
@@ -86,7 +92,7 @@ export default function LoginPage() {
                 {mode === "password" && <label className="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/35">Password<span className="relative mt-2 block"><input type={showPassword ? "text" : "password"} autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required maxLength={256} className="min-h-12 w-full rounded-xl border border-white/10 bg-black/25 px-4 pr-14 text-base font-normal normal-case tracking-normal text-white focus:border-gold-500/40 focus:outline-none" /><button type="button" onClick={() => setShowPassword((current) => !current)} className="absolute inset-y-0 right-1 flex w-12 items-center justify-center text-white/35 hover:text-white" aria-label={showPassword ? "Hide password" : "Show password"}>{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button></span></label>}
                 {error && <div role="alert" className="rounded-xl border border-rose-400/15 bg-rose-400/5 p-3 text-center text-sm text-rose-300">{error}</div>}
                 <button type="submit" disabled={loading} className="gold-gradient flex min-h-14 w-full items-center justify-center gap-2 rounded-xl px-4 font-bold text-black disabled:opacity-50">{loading && <Loader2 className="h-4 w-4 animate-spin" />}{mode === "password" ? "Sign in" : "Email me a sign-in link"}</button>
-                {mode === "password" && (
+                {mode === "password" && canRegister && (
                   <p className="text-center text-sm text-white/35">
                     New to Azyume Studio?{" "}
                     <Link
