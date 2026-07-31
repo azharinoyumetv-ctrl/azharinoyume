@@ -12,7 +12,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   const requestHeaders = await headers();
   const accessEmail = requestHeaders.get("cf-access-authenticated-user-email")?.toLowerCase();
-  const accessRequired = process.env.CLOUDFLARE_ACCESS_REQUIRED === "true" || process.env.NODE_ENV === "production";
+  const accessRequired = process.env.CLOUDFLARE_ACCESS_REQUIRED === "true";
   if (accessRequired && accessEmail !== session.user.email.toLowerCase()) redirect("/login?error=AccessRequired");
 
   return (
