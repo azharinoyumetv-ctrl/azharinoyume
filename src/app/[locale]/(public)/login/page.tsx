@@ -13,7 +13,9 @@ function safeCallbackUrl(value: string | null, fallback: string) {
 
 export default function LoginPage() {
   const searchParams = useSearchParams();
-  const [mode, setMode] = useState<LoginMode>("password");
+  const [mode, setMode] = useState<LoginMode>(() =>
+    searchParams.get("mode") === "magic" ? "magic" : "password",
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
