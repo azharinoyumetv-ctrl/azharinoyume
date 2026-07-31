@@ -23,6 +23,14 @@ export default async function proxy(request: NextRequest) {
       307,
     );
   }
+  if (
+    host === "bot.azharinoyume.cloud" &&
+    /\/register\/?$/.test(request.nextUrl.pathname)
+  ) {
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("callbackUrl", "/admin/opportunities");
+    return NextResponse.redirect(loginUrl, 307);
+  }
 
   const { pathname } = request.nextUrl;
   const segments = pathname.split("/").filter(Boolean);
