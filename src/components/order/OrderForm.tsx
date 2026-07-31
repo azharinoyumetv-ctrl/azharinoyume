@@ -100,8 +100,8 @@ export default function OrderForm() {
   const searchParams = useSearchParams();
   const orderQuery = searchParams.toString();
   const orderCallbackUrl = `/order${orderQuery ? `?${orderQuery}` : ""}`;
+  const registrationUrl = `/register?callbackUrl=${encodeURIComponent(orderCallbackUrl)}`;
   const passwordLoginUrl = `/login?mode=password&callbackUrl=${encodeURIComponent(orderCallbackUrl)}`;
-  const emailLoginUrl = `/login?mode=magic&callbackUrl=${encodeURIComponent(orderCallbackUrl)}`;
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<FormState>(() => initialState(searchParams));
   const [file, setFile] = useState<File | null>(null);
@@ -309,16 +309,16 @@ export default function OrderForm() {
         </p>
         <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
           <Link
-            href={emailLoginUrl}
+            href={registrationUrl}
             className="gold-gradient inline-flex min-h-14 w-full items-center justify-center rounded-xl px-7 font-bold text-black sm:w-auto"
           >
-            Continue with email
+            Create customer account
           </Link>
           <Link
             href={passwordLoginUrl}
             className="inline-flex min-h-14 w-full items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-7 font-bold text-white transition-colors hover:bg-white/[0.08] sm:w-auto"
           >
-            Use a password
+            Sign in
           </Link>
         </div>
       </div>

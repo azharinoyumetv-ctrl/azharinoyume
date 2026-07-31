@@ -9,11 +9,17 @@ import {
   Editor360ConfigSchema,
   outputDimensions,
 } from "@/lib/video360/contracts";
+import { recalculateOrderProfit } from "@/lib/accounting/profit";
 
 const serviceUrl = process.env.RENDER_SERVICE_URL || "http://127.0.0.1:4100";
 const secret = process.env.RENDER_SERVICE_SECRET || "";
 
-type JobData = { orderId: string; renderId: string; reservationId: string };
+type JobData = {
+  orderId: string;
+  renderId: string;
+  reservationId?: string;
+  billingMode?: "wallet" | "project";
+};
 type ServiceStatus = {
   status: "QUEUED" | "RENDERING" | "UPLOADING" | "SUCCEEDED" | "FAILED";
   progress: number;
@@ -171,8 +177,15 @@ async function processRenderJob(job: Job<JobData>) {
       throw new Error(
         "Renderer reported success but the output object is missing or empty",
       );
-    const actualCredits = render.reservedCredits;
-    await consumeReservation(reservationId, actualCredits);
+    const actualCredits = reservationId ? render.reservedCredits : 0;
+    if (reservationId) await consumeReservation(reservationId, actualCredits);
+    const renderDurationSeconds = Math.max(
+      1,
+      Math.round(Number(status.durationMs || 0) / 1_000),
+    );
+    const estimatedRenderCostUsd =
+      (renderDurationSeconds / 3_600) *
+      Number(process.env.SELF_HOSTED_RENDER_USD_PER_HOUR || 0.35);
     await prisma.$transaction([
       prisma.renderAttempt.update({
         where: { id: attempt.id },
@@ -193,12 +206,58 @@ async function processRenderJob(job: Job<JobData>) {
           outputR2Key: status.r2Key,
           outputChecksum: status.checksum,
           actualCredits,
+          durationSeconds: renderDurationSeconds,
           leaseExpiresAt: null,
         },
       }),
       prisma.order.update({
         where: { id: orderId },
-        data: { status: "DRAFT_REVIEW", actualCredits },
+          data: { status: "DRAFT_REVIEW", actualCredits },
+      }),
+      prisma.qualityCheck.upsert({
+        where: { renderId },
+        create: {
+          orderId,
+          renderId,
+          qaType: render.renderType,
+          status: "passed",
+          checks: {
+            outputExists: true,
+            outputNonEmpty: true,
+            checksumPresent: Boolean(status.checksum),
+          },
+          technicalScore: status.checksum ? 100 : 90,
+          creativeScore: null,
+          requiresHuman: order.manualReviewRequired,
+        },
+        update: {
+          status: "passed",
+          checks: {
+            outputExists: true,
+            outputNonEmpty: true,
+            checksumPresent: Boolean(status.checksum),
+          },
+          technicalScore: status.checksum ? 100 : 90,
+          requiresHuman: order.manualReviewRequired,
+          completedAt: new Date(),
+        },
+      }),
+      prisma.renderCostLog.create({
+        data: {
+          renderId,
+          orderId,
+          worker: "self-hosted-remotion",
+          durationSeconds: renderDurationSeconds,
+          estimatedCostUsd: estimatedRenderCostUsd,
+        },
+      }),
+      prisma.costLog.create({
+        data: {
+          orderId,
+          costType: "render",
+          amount: estimatedRenderCostUsd,
+          description: `Self-hosted render estimate for ${renderDurationSeconds} seconds`,
+        },
       }),
       prisma.deliveryLink.create({
         data: {
@@ -208,6 +267,12 @@ async function processRenderJob(job: Job<JobData>) {
         },
       }),
     ]);
+    await recalculateOrderProfit(orderId).catch((error) =>
+      console.error(
+        `[accounting] Profit calculation failed for ${orderId}`,
+        error,
+      ),
+    );
     return { renderId, r2Key: status.r2Key, checksum: status.checksum };
   }
   throw new Error("Render attempt timed out after 45 minutes");
@@ -257,9 +322,11 @@ export function startWorker() {
       })
       .catch(() => {});
     if (exhausted) {
-      await releaseReservation(job.data.reservationId, error.message).catch(
-        () => {},
-      );
+      if (job.data.reservationId) {
+        await releaseReservation(job.data.reservationId, error.message).catch(
+          () => {},
+        );
+      }
       await prisma.order
         .update({
           where: { id: job.data.orderId },

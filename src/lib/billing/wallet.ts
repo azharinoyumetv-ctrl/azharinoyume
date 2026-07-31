@@ -36,7 +36,23 @@ export async function grantPaidCredits(paymentId: string, providerEventId: strin
       });
       await tx.order.update({
         where: { id: order.id },
-        data: { status: "ANALYSIS_QUEUED" },
+        data: {
+          status: "ANALYSIS_QUEUED",
+          queuePosition:
+            (await tx.order.count({
+              where: {
+                status: {
+                  in: [
+                    "ANALYSIS_QUEUED",
+                    "ANALYZING",
+                    "PLANNING",
+                    "QUEUED",
+                    "RENDERING",
+                  ],
+                },
+              },
+            })) + 1,
+        },
       });
       await tx.queueJob.create({
         data: {

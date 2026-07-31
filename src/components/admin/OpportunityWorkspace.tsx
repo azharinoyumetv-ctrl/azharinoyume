@@ -16,6 +16,10 @@ import {
   StatusPill,
 } from "@/components/dashboard/DashboardPrimitives";
 import { formatCurrency } from "@/lib/utils";
+import {
+  GenerateProposalButton,
+  RunOpportunityScanButton,
+} from "@/components/admin/OpportunityActions";
 
 export type OpportunityView =
   | "opportunities"
@@ -112,6 +116,8 @@ export default async function OpportunityWorkspace({
         badge={<StatusPill tone="green">Human approval enforced</StatusPill>}
       />
 
+      {view === "opportunities" && <RunOpportunityScanButton />}
+
       <nav className="scrollbar-thin -mx-3 flex gap-2 overflow-x-auto px-3 pb-1 sm:mx-0 sm:px-0">
         {TABS.map((tab) => (
           <Link
@@ -183,6 +189,7 @@ export default async function OpportunityWorkspace({
                   <th className="px-3 py-3">Profit</th>
                   <th className="px-3 py-3">Risk</th>
                   <th className="px-3 py-3">Pipeline</th>
+                  <th className="px-3 py-3">Proposal</th>
                   <th className="px-5 py-3">Source</th>
                 </tr>
               </thead>
@@ -217,6 +224,12 @@ export default async function OpportunityWorkspace({
                       <StatusPill tone={lead.pipelineStatus === "won" ? "green" : "neutral"}>
                         {lead.pipelineStatus.replaceAll("_", " ")}
                       </StatusPill>
+                    </td>
+                    <td className="px-3 py-4">
+                      <GenerateProposalButton
+                        leadId={lead.id}
+                        hasProposal={lead.proposals.length > 0}
+                      />
                     </td>
                     <td className="px-5 py-4">
                       {lead.sourceUrl ? (

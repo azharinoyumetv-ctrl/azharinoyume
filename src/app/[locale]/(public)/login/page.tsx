@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { Eye, EyeOff, KeyRound, Loader2, Mail } from "lucide-react";
@@ -80,11 +81,22 @@ export default function LoginPage() {
               </div>
             ) : (
               <form onSubmit={mode === "password" ? handlePasswordLogin : handleMagicLink} className="space-y-4">
-                <div><h1 className="text-xl font-black tracking-[-0.02em]">{mode === "password" ? "Administrator sign in" : "Email me a secure link"}</h1><p className="mt-1 text-sm leading-5 text-white/35">{mode === "password" ? "Use the email and password stored for your admin account." : "No password required. The link can be used once."}</p></div>
+                <div><h1 className="text-xl font-black tracking-[-0.02em]">{mode === "password" ? "Password sign in" : "Email me a secure link"}</h1><p className="mt-1 text-sm leading-5 text-white/35">{mode === "password" ? "Use the email and password for your customer or administrator account." : "No password required. The link can be used once."}</p></div>
                 <label className="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/35">Email<input type="email" inputMode="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required className="mt-2 min-h-12 w-full rounded-xl border border-white/10 bg-black/25 px-4 text-base font-normal normal-case tracking-normal text-white focus:border-gold-500/40 focus:outline-none" /></label>
                 {mode === "password" && <label className="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/35">Password<span className="relative mt-2 block"><input type={showPassword ? "text" : "password"} autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required maxLength={256} className="min-h-12 w-full rounded-xl border border-white/10 bg-black/25 px-4 pr-14 text-base font-normal normal-case tracking-normal text-white focus:border-gold-500/40 focus:outline-none" /><button type="button" onClick={() => setShowPassword((current) => !current)} className="absolute inset-y-0 right-1 flex w-12 items-center justify-center text-white/35 hover:text-white" aria-label={showPassword ? "Hide password" : "Show password"}>{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button></span></label>}
                 {error && <div role="alert" className="rounded-xl border border-rose-400/15 bg-rose-400/5 p-3 text-center text-sm text-rose-300">{error}</div>}
                 <button type="submit" disabled={loading} className="gold-gradient flex min-h-14 w-full items-center justify-center gap-2 rounded-xl px-4 font-bold text-black disabled:opacity-50">{loading && <Loader2 className="h-4 w-4 animate-spin" />}{mode === "password" ? "Sign in" : "Email me a sign-in link"}</button>
+                {mode === "password" && (
+                  <p className="text-center text-sm text-white/35">
+                    New to Azyume Studio?{" "}
+                    <Link
+                      href={`/register?callbackUrl=${encodeURIComponent(safeCallbackUrl(searchParams.get("callbackUrl"), "/portal"))}`}
+                      className="font-semibold text-gold-300"
+                    >
+                      Create an account
+                    </Link>
+                  </p>
+                )}
               </form>
             )}
           </div>
