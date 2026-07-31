@@ -32,7 +32,7 @@ export default function LoginPage() {
       setError("The email or password is incorrect.");
       return;
     }
-    window.location.assign(result.url || callbackUrl);
+    window.location.assign(callbackUrl);
   }
 
   async function handleMagicLink(event: React.FormEvent) {
