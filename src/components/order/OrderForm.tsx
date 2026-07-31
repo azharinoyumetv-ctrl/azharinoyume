@@ -502,7 +502,75 @@ export default function OrderForm() {
                     onChange={(value) => update("editingPace", value)}
                   />
                   <SelectField
-          …1010 tokens truncated…           )}
+                    label="Color treatment"
+                    value={form.colorGrade}
+                    options={COLOR_GRADES}
+                    onChange={(value) => update("colorGrade", value)}
+                  />
+                  <SelectField
+                    label="Captions"
+                    value={form.captionStyle}
+                    options={CAPTION_STYLES}
+                    onChange={(value) => update("captionStyle", value)}
+                  />
+                  <SelectField
+                    label="Music direction"
+                    value={form.musicStyle}
+                    options={MUSIC_STYLES}
+                    onChange={(value) => update("musicStyle", value)}
+                  />
+                  <SelectField
+                    label="Creative freedom"
+                    value={form.creativeFreedom}
+                    options={[
+                      ["low", "Low — follow my instructions closely"],
+                      ["balanced", "Balanced — decide within my rules"],
+                      ["high", "High — choose the strongest story"],
+                    ]}
+                    onChange={(value) =>
+                      update(
+                        "creativeFreedom",
+                        value as FormState["creativeFreedom"],
+                      )
+                    }
+                  />
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <TextAreaField
+                    label="Must include"
+                    value={form.mandatoryContent}
+                    onChange={(value) => update("mandatoryContent", value)}
+                    placeholder="Required people, dialogue, scenes, products, logos, or CTA. Write “No specific moments” if unrestricted."
+                  />
+                  <TextAreaField
+                    label="Must exclude"
+                    value={form.excludedContent}
+                    onChange={(value) => update("excludedContent", value)}
+                    placeholder="Damaged product, private people, sensitive dialogue, shaky footage. Write “Nothing specific” if none."
+                  />
+                </div>
+                <TextAreaField
+                  label="Describe the result in your own words"
+                  value={form.prompt}
+                  onChange={(value) => update("prompt", value)}
+                  rows={5}
+                  placeholder="Example: Open with the strongest emotional moment, build a warm cinematic story, keep family reactions, remove repeated or shaky shots, and finish with the couple leaving together."
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    update(
+                      "prompt",
+                      `Create a ${form.mood} ${form.purpose.toLowerCase()} for ${form.audience}. Use the ${STYLE_DIRECTIONS.find((style) => style.slug === form.visualStyle)?.title.toLowerCase()} direction with ${form.editingPace.replaceAll("-", " ")} pacing and a ${form.colorGrade.replaceAll("-", " ")} color treatment. Prioritize ${form.storyPriority || "the strongest story in the footage"}. Include ${form.mandatoryContent || "the most meaningful moments"} and exclude ${form.excludedContent || "unusable, repeated, or distracting footage"}.`,
+                    )
+                  }
+                  className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-violet-300/15 bg-violet-300/[.06] px-4 text-sm font-bold text-violet-200"
+                >
+                  <Sparkles className="h-4 w-4" /> Build a prompt from my
+                  selections
+                </button>
+              </div>
+            )}
 
             {step === 2 && (
               <div className="space-y-6">
