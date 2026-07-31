@@ -148,7 +148,9 @@ export function parseMidtransWebhook(body: MidtransWebhook) {
 }
 
 export function verifyMidtransWebhook(body: MidtransWebhook) {
-  const { merchantId, serverKey } = credentials();
+  const readiness = midtransCredentialReadiness();
+  if (!readiness.configured) return false;
+  const { merchantId, serverKey } = credentialValues();
   const parsed = parseMidtransWebhook(body);
   if (
     !parsed.referenceId ||

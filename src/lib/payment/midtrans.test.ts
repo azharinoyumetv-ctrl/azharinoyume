@@ -116,5 +116,12 @@ describe("Midtrans Snap", () => {
       amount: 149_000,
       customer: { name: "Azyume Customer", email: "customer@example.test" },
     })).rejects.toThrow("production keys do not match the sandbox endpoint");
+    expect(verifyMidtransWebhook({
+      order_id: "AZY-order-1",
+      status_code: "200",
+      gross_amount: "149000.00",
+      transaction_status: "settlement",
+      signature_key: "invalid",
+    })).toBe(false);
   });
 });
