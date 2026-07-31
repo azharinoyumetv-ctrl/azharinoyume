@@ -27,12 +27,53 @@ function environmentValue(primary: string, fallback: string) {
   return process.env[primary] || process.env[fallback] || "";
 }
 
-function credentials() {
+function credentialValues() {
   const clientKey = environmentValue("MIDTRANS_Client_Key", "MIDTRANS_CLIENT_KEY");
   const merchantId = environmentValue("MIDTRANS_Merchant_ID", "MIDTRANS_MERCHANT_ID");
   const serverKey = environmentValue("MIDTRANS_Server_Key", "MIDTRANS_SERVER_KEY");
-  if (!clientKey || !merchantId || !serverKey) throw new Error("Midtrans is not configured");
   return { clientKey, merchantId, serverKey };
+}
+
+export function midtransCredentialReadiness() {
+  const { clientKey, merchantId, serverKey } = credentialValues();
+  if (!clientKey || !merchantId || !serverKey) {
+    return {
+      configured: false,
+      detail: "Midtrans client key, merchant ID, or server key is missing",
+    };
+  }
+
+  const clientIsSandbox = clientKey.startsWith("SB-");
+  const serverIsSandbox = serverKey.startsWith("SB-");
+  if (clientIsSandbox !== serverIsSandbox) {
+    return {
+      configured: false,
+      detail: "Midtrans client and server keys belong to different environments",
+    };
+  }
+
+  const environment = process.env.MIDTRANS_ENVIRONMENT === "production"
+    ? "production"
+    : "sandbox";
+  const credentialsEnvironment = serverIsSandbox ? "sandbox" : "production";
+  if (environment !== credentialsEnvironment) {
+    return {
+      configured: false,
+      detail: `Midtrans ${credentialsEnvironment} keys do not match the ${environment} endpoint`,
+    };
+  }
+
+  return {
+    configured: true,
+    detail: `${credentialsEnvironment === "sandbox" ? "Sandbox" : "Production"} Snap API and signed notifications configured`,
+  };
+}
+
+function credentials() {
+  const values = credentialValues();
+  const readiness = midtransCredentialReadiness();
+  if (!readiness.configured) throw new Error(readiness.detail);
+  return values;
 }
 
 function midtransBaseUrl() {

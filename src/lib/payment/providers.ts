@@ -1,4 +1,5 @@
 import { ApiError } from "@/lib/api/authz";
+import { midtransCredentialReadiness } from "@/lib/payment/midtrans";
 import { prisma } from "@/lib/prisma";
 
 export type PaymentGateway = "doku" | "xendit" | "midtrans" | "payoneer";
@@ -75,17 +76,7 @@ export function paymentProviderReadiness(name: PaymentGateway, options?: { check
     return { configured, detail: configured ? "API and webhook configured" : "Xendit API or webhook configuration is incomplete" };
   }
   if (name === "midtrans") {
-    const configured = Boolean(
-      (process.env.MIDTRANS_Client_Key || process.env.MIDTRANS_CLIENT_KEY) &&
-      (process.env.MIDTRANS_Merchant_ID || process.env.MIDTRANS_MERCHANT_ID) &&
-      (process.env.MIDTRANS_Server_Key || process.env.MIDTRANS_SERVER_KEY),
-    );
-    return {
-      configured,
-      detail: configured
-        ? "Snap API and signed notifications configured"
-        : "Midtrans client key, merchant ID, or server key is missing",
-    };
+    return midtransCredentialReadiness();
   }
   let configured = false;
   try {

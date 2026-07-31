@@ -104,4 +104,17 @@ describe("Midtrans Snap", () => {
       signature_key: "invalid",
     })).toBe(false);
   });
+
+  it("refuses production keys at the sandbox endpoint", async () => {
+    process.env.MIDTRANS_Client_Key = "Mid-client-production";
+    process.env.MIDTRANS_Merchant_ID = "G123456789";
+    process.env.MIDTRANS_Server_Key = "Mid-server-production";
+    process.env.MIDTRANS_ENVIRONMENT = "sandbox";
+
+    await expect(createMidtransPayment({
+      referenceId: "AZY-order-1",
+      amount: 149_000,
+      customer: { name: "Azyume Customer", email: "customer@example.test" },
+    })).rejects.toThrow("production keys do not match the sandbox endpoint");
+  });
 });
