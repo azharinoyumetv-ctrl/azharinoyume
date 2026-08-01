@@ -4,6 +4,11 @@ import { prisma } from "@/lib/prisma";
 import { getRenderQueue } from "@/lib/queue/queues";
 import { R2Keys } from "@/lib/storage/r2";
 import { sha256 } from "@/lib/security/crypto";
+import { z } from "zod";
+import {
+  analyzeVideoAsset,
+  type VideoAnalysisManifest,
+} from "@/lib/production/video-analysis";
 
 type PlannedSegment = {
   sourceStartMs: number;
@@ -24,6 +29,29 @@ type AutomatedEditPlan = {
   riskFlags: string[];
 };
 
+type TimelineCaption = {
+  startMs: number;
+  endMs: number;
+  text: string;
+};
+
+const AutomatedEditPlanSchema = z.object({
+  narrative: z.string().min(1).max(2_000),
+  hook: z.string().min(1).max(1_000),
+  segments: z.array(z.object({
+    sourceStartMs: z.number().int().min(0),
+    sourceEndMs: z.number().int().positive(),
+    purpose: z.string().min(1).max(300),
+    treatment: z.string().min(1).max(500),
+  })).min(1).max(30),
+  captionDirection: z.string().min(1).max(1_000),
+  musicDirection: z.string().min(1).max(1_000),
+  colorDirection: z.string().min(1).max(1_000),
+  transitionDirection: z.string().min(1).max(1_000),
+  confidence: z.number().min(0).max(100),
+  riskFlags: z.array(z.string().max(300)).max(20),
+});
+
 const RUNNING_JOB_TIMEOUT_MS = 30 * 60_000;
 
 function extractJsonObject(value: string) {
@@ -36,87 +64,23 @@ function extractJsonObject(value: string) {
   }
 }
 
-function clamp(value: number, minimum: number, maximum: number) {
-  return Math.min(maximum, Math.max(minimum, value));
-}
-
-function fallbackPlan(input: {
-  durationMs: number;
-  targetDurationMs: number;
-  purpose: string;
-  visualStyle: string;
-  captionStyle: string;
-  musicStyle: string;
-  colorGrade: string;
-}): AutomatedEditPlan {
-  const usableDuration = Math.min(input.durationMs, input.targetDurationMs);
-  return {
-    narrative: `A concise ${input.purpose} production using the confirmed customer brief.`,
-    hook: "Open with the strongest usable moment from the supplied footage.",
-    segments: [
-      {
-        sourceStartMs: 0,
-        sourceEndMs: usableDuration,
-        purpose: "primary story",
-        treatment: `${input.visualStyle} pacing with technically safe cuts`,
-      },
-    ],
-    captionDirection: input.captionStyle,
-    musicDirection: input.musicStyle,
-    colorDirection: input.colorGrade,
-    transitionDirection: "Use restrained cuts and short dissolves where continuity needs support.",
-    confidence: 55,
-    riskFlags: [
-      "Automated metadata analysis cannot confirm the strongest visual moments without transcript or vision analysis.",
-    ],
-  };
-}
-
-function normalizePlan(
-  parsed: Record<string, unknown> | null,
-  fallback: AutomatedEditPlan,
+export function validateAutomatedEditPlan(
+  value: unknown,
   sourceDurationMs: number,
-) {
-  if (!parsed) return fallback;
-  const rawSegments = Array.isArray(parsed.segments) ? parsed.segments : [];
-  const segments = rawSegments
-    .map((segment) => {
-      if (!segment || typeof segment !== "object") return null;
-      const candidate = segment as Record<string, unknown>;
-      const start = clamp(Number(candidate.sourceStartMs || 0), 0, sourceDurationMs);
-      const end = clamp(Number(candidate.sourceEndMs || 0), start, sourceDurationMs);
-      if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return null;
-      return {
-        sourceStartMs: Math.round(start),
-        sourceEndMs: Math.round(end),
-        purpose: String(candidate.purpose || "story segment").slice(0, 300),
-        treatment: String(candidate.treatment || "clean edit").slice(0, 500),
-      };
-    })
-    .filter((segment): segment is PlannedSegment => Boolean(segment))
-    .slice(0, 30);
-
-  return {
-    narrative: String(parsed.narrative || fallback.narrative).slice(0, 2_000),
-    hook: String(parsed.hook || fallback.hook).slice(0, 1_000),
-    segments: segments.length ? segments : fallback.segments,
-    captionDirection: String(
-      parsed.captionDirection || fallback.captionDirection,
-    ).slice(0, 1_000),
-    musicDirection: String(
-      parsed.musicDirection || fallback.musicDirection,
-    ).slice(0, 1_000),
-    colorDirection: String(
-      parsed.colorDirection || fallback.colorDirection,
-    ).slice(0, 1_000),
-    transitionDirection: String(
-      parsed.transitionDirection || fallback.transitionDirection,
-    ).slice(0, 1_000),
-    confidence: clamp(Number(parsed.confidence || fallback.confidence), 0, 100),
-    riskFlags: Array.isArray(parsed.riskFlags)
-      ? parsed.riskFlags.map(String).slice(0, 20)
-      : fallback.riskFlags,
-  };
+  targetDurationMs: number,
+): AutomatedEditPlan {
+  const plan = AutomatedEditPlanSchema.parse(value);
+  for (const segment of plan.segments) {
+    if (segment.sourceEndMs <= segment.sourceStartMs || segment.sourceEndMs > sourceDurationMs)
+      throw new Error("Edit plan contains an invalid source range");
+  }
+  const plannedDuration = plan.segments.reduce(
+    (total, segment) => total + segment.sourceEndMs - segment.sourceStartMs,
+    0,
+  );
+  if (plannedDuration <= 0 || plannedDuration > targetDurationMs * 1.1)
+    throw new Error("Edit plan duration exceeds the confirmed output duration");
+  return plan;
 }
 
 async function createAutomatedPlan(input: {
@@ -137,20 +101,9 @@ async function createAutomatedPlan(input: {
   prompt: string;
   mandatoryContent: string;
   excludedContent: string;
+  analysis: VideoAnalysisManifest;
 }) {
-  const fallback = fallbackPlan({
-    durationMs: input.sourceDurationMs,
-    targetDurationMs: input.targetDurationMs,
-    purpose: input.purpose,
-    visualStyle: input.visualStyle,
-    captionStyle: input.captionStyle,
-    musicStyle: input.musicStyle,
-    colorGrade: input.colorGrade,
-  });
-
-  const prompt = `Create a conservative machine-readable edit plan for an automated video production.
-
-You have the customer brief and technical metadata, but not a transcript or visual frames. Never claim that you saw a person, object, scene, spoken sentence, or emotional moment. Use time ranges only as a safe structural plan. Keep all ranges inside the source duration.
+  const prompt = `Create a machine-readable edit plan for an automated video production using the grounded multimodal analysis below. Select only source ranges present in the analysis. Do not invent scenes, dialogue, people, objects, or timestamps. Keep every range inside the source duration and keep the total selected duration at or below the target duration.
 
 Source duration: ${input.sourceDurationMs} ms
 Target duration: ${input.targetDurationMs} ms
@@ -167,6 +120,7 @@ Output: ${input.aspectRatio}, ${input.resolution}
 Mandatory content: ${input.mandatoryContent}
 Excluded content: ${input.excludedContent}
 Customer instructions: ${input.prompt}
+Grounded video analysis: ${JSON.stringify(input.analysis)}
 
 Return only JSON:
 {
@@ -188,19 +142,43 @@ Return only JSON:
   "riskFlags": ["string"]
 }`;
 
-  try {
-    const text = await callClaude(prompt, {
-      orderId: input.orderId,
-      purpose: "automated_edit_plan",
-      usePremium: false,
-      systemPrompt:
-        "You create deterministic JSON edit plans and state uncertainty honestly.",
-    });
-    return normalizePlan(extractJsonObject(text), fallback, input.sourceDurationMs);
-  } catch (error) {
-    console.error("[production] AI edit planning failed; using safe plan", error);
-    return fallback;
+  const text = await callClaude(prompt, {
+    orderId: input.orderId,
+    purpose: "automated_edit_plan",
+    usePremium: false,
+    maxTokens: 8192,
+    systemPrompt:
+      "You create deterministic JSON edit plans grounded only in supplied video analysis.",
+  });
+  const parsed = extractJsonObject(text);
+  if (!parsed) throw new Error("AI edit planning returned invalid JSON");
+  return validateAutomatedEditPlan(parsed, input.sourceDurationMs, input.targetDurationMs);
+}
+
+function buildTimelineCaptions(
+  segments: PlannedSegment[],
+  analysis: VideoAnalysisManifest,
+  captionStyle: string,
+): TimelineCaption[] {
+  if (captionStyle === "none") return [];
+
+  const captions: TimelineCaption[] = [];
+  let outputCursorMs = 0;
+  for (const segment of segments) {
+    for (const scene of analysis.scenes) {
+      const overlapStart = Math.max(segment.sourceStartMs, scene.startMs);
+      const overlapEnd = Math.min(segment.sourceEndMs, scene.endMs);
+      const text = scene.spokenText.trim();
+      if (!text || overlapEnd <= overlapStart) continue;
+      captions.push({
+        startMs: outputCursorMs + overlapStart - segment.sourceStartMs,
+        endMs: outputCursorMs + overlapEnd - segment.sourceStartMs,
+        text,
+      });
+    }
+    outputCursorMs += segment.sourceEndMs - segment.sourceStartMs;
   }
+  return captions.slice(0, 300);
 }
 
 async function processMediaAnalysisJob(jobId: string) {
@@ -251,7 +229,7 @@ async function processMediaAnalysisJob(jobId: string) {
       throw new Error(`Unsupported production job type: ${job.jobType}`);
     const order = job.order;
     const asset = order.uploadedAssets[0];
-    if (!asset?.durationMs)
+    if (!asset?.durationMs || !asset.fileName || !asset.mimeType)
       throw new Error("Paid production has no verified source footage");
     if (!["ANALYSIS_QUEUED", "ANALYZING", "PLANNING", "QUEUED"].includes(order.status))
       throw new Error(`Order cannot enter analysis from ${order.status}`);
@@ -261,8 +239,24 @@ async function processMediaAnalysisJob(jobId: string) {
       data: { status: "ANALYZING" },
     });
 
+    const sourceLanguage = order.customerPromptLanguage || "en";
+    const originalPrompt = order.customerPromptOriginal || "";
+    const promptEn =
+      sourceLanguage === "en"
+        ? originalPrompt
+        : await translateToEnglish(originalPrompt, sourceLanguage, order.id);
+    const analyzed = await analyzeVideoAsset({
+      orderId: order.id,
+      r2Key: asset.r2Key,
+      fileName: asset.fileName,
+      mimeType: asset.mimeType,
+      durationMs: asset.durationMs,
+      customerBrief: promptEn,
+      mandatoryContent: order.mandatoryContent || "none specified",
+      excludedContent: order.excludedContent || "none specified",
+    });
     const sourceManifest = {
-      schemaVersion: "media-analysis.v1",
+      schemaVersion: "media-analysis.v2",
       assetId: asset.id,
       fileName: asset.fileName,
       mimeType: asset.mimeType,
@@ -270,14 +264,7 @@ async function processMediaAnalysisJob(jobId: string) {
       durationMs: asset.durationMs,
       checksumSha256: asset.checksumSha256,
       verifiedAt: asset.verifiedAt?.toISOString() || null,
-      analysisScope: [
-        "container metadata",
-        "duration and integrity",
-        "customer brief constraints",
-      ],
-      limitations: [
-        "Transcript, speaker, object, face, and shot-level vision analysis are not available in this worker version.",
-      ],
+      ...analyzed.manifest,
     };
     await prisma.mediaAnalysis.upsert({
       where: { assetId: asset.id },
@@ -286,17 +273,17 @@ async function processMediaAnalysisJob(jobId: string) {
         assetId: asset.id,
         status: "completed",
         manifest: sourceManifest,
-        confidence: 70,
-        issues: sourceManifest.limitations,
-        modelVersion: "metadata-v1",
+        confidence: analyzed.manifest.confidence,
+        issues: analyzed.manifest.qualityIssues,
+        modelVersion: analyzed.model,
         completedAt: new Date(),
       },
       update: {
         status: "completed",
         manifest: sourceManifest,
-        confidence: 70,
-        issues: sourceManifest.limitations,
-        modelVersion: "metadata-v1",
+        confidence: analyzed.manifest.confidence,
+        issues: analyzed.manifest.qualityIssues,
+        modelVersion: analyzed.model,
         completedAt: new Date(),
       },
     });
@@ -306,12 +293,6 @@ async function processMediaAnalysisJob(jobId: string) {
       data: { status: "PLANNING" },
     });
 
-    const sourceLanguage = order.customerPromptLanguage || "en";
-    const originalPrompt = order.customerPromptOriginal || "";
-    const promptEn =
-      sourceLanguage === "en"
-        ? originalPrompt
-        : await translateToEnglish(originalPrompt, sourceLanguage, order.id);
     const targetDurationMs = Math.min(
       asset.durationMs,
       Math.max(1, order.targetDurationSeconds || 60) * 1_000,
@@ -334,6 +315,7 @@ async function processMediaAnalysisJob(jobId: string) {
       prompt: promptEn,
       mandatoryContent: order.mandatoryContent || "none specified",
       excludedContent: order.excludedContent || "none specified",
+      analysis: analyzed.manifest,
     });
 
     const existingPlan = await prisma.editPlan.findUnique({
@@ -347,7 +329,7 @@ async function processMediaAnalysisJob(jobId: string) {
             plan: plan as unknown as Prisma.InputJsonValue,
             confidence: plan.confidence,
             riskFlags: plan.riskFlags,
-            modelVersion: "automated-plan-v1",
+            modelVersion: "grounded-plan-v2",
             approvedAt: new Date(),
           },
         })
@@ -359,7 +341,7 @@ async function processMediaAnalysisJob(jobId: string) {
             plan: plan as unknown as Prisma.InputJsonValue,
             confidence: plan.confidence,
             riskFlags: plan.riskFlags,
-            modelVersion: "automated-plan-v1",
+            modelVersion: "grounded-plan-v2",
             approvedAt: new Date(),
           },
         });
@@ -383,6 +365,11 @@ async function processMediaAnalysisJob(jobId: string) {
         captions: order.captionStyle,
         music: order.musicStyle,
       },
+      captions: buildTimelineCaptions(
+        plan.segments,
+        analyzed.manifest,
+        order.captionStyle || "minimal",
+      ),
       plan,
     };
     const timelineChecksum = sha256(
@@ -404,12 +391,17 @@ async function processMediaAnalysisJob(jobId: string) {
       },
     });
 
+    const manualReviewRequired =
+      plan.confidence < 60 ||
+      plan.riskFlags.length > 2 ||
+      (order.musicStyle || "none") !== "none";
     await prisma.order.update({
       where: { id: order.id },
       data: {
         customerPromptLanguage: sourceLanguage,
         customerPromptEn: promptEn,
-        manualReviewRequired: plan.confidence < 60 || plan.riskFlags.length > 2,
+        manualReviewRequired,
+        adminApproved: !manualReviewRequired,
       },
     });
 

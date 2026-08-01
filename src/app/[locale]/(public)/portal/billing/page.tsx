@@ -12,7 +12,7 @@ export default async function BillingPage() {
   if (!session?.user?.id) redirect("/login?callbackUrl=/portal/billing");
   const [wallet, products, subscriptions, payments, gatewaySettings] = await Promise.all([
     prisma.wallet.upsert({ where: { userId: session.user.id }, create: { userId: session.user.id }, update: {} }),
-    prisma.pricingProduct.findMany({ where: { active: true, kind: { in: ["PACK", "SUBSCRIPTION"] } }, orderBy: { sortOrder: "asc" } }),
+    prisma.pricingProduct.findMany({ where: { active: true, kind: "PACK" }, orderBy: { sortOrder: "asc" } }),
     prisma.subscription.findMany({ where: { userId: session.user.id }, orderBy: { createdAt: "desc" } }),
     prisma.payment.findMany({ where: { userId: session.user.id }, orderBy: { createdAt: "desc" }, take: 20 }),
     getPaymentProviderSettings(),

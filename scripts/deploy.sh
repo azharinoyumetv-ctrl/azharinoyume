@@ -14,7 +14,7 @@ echo "[1] Pull latest code"
 git pull origin main
 
 echo "[2] Install dependencies"
-npm ci --include=dev
+npm ci --include=dev --legacy-peer-deps
 
 echo "[3] Run database migrations"
 npx prisma migrate deploy

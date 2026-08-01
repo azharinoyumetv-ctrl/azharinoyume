@@ -5,12 +5,10 @@ import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { Resend } from "resend";
 import { prisma } from "@/lib/prisma";
 import {
-  clearPasswordLoginFailures,
-  isPasswordLoginRateLimited,
   parseLoginCredentials,
-  recordPasswordLoginFailure,
   verifyPasswordHash,
 } from "@/lib/auth/password";
+import { clearRateLimit, consumeRateLimit } from "@/lib/security/rate-limit";
 
 const EmailProvider = ((EmailProviderModule as unknown as { default?: typeof EmailProviderModule }).default || EmailProviderModule) as typeof EmailProviderModule;
 const CredentialsProvider = ((CredentialsProviderModule as unknown as { default?: typeof CredentialsProviderModule }).default || CredentialsProviderModule) as typeof CredentialsProviderModule;
@@ -44,16 +42,21 @@ export const authOptions: NextAuthOptions = {
         const forwardedFor = request.headers?.["cf-connecting-ip"] || request.headers?.["x-forwarded-for"] || "unknown";
         const clientAddress = Array.isArray(forwardedFor) ? forwardedFor[0] : forwardedFor.split(",")[0].trim();
         const rateLimitKey = `${clientAddress}:${parsed.email}`;
-        if (isPasswordLoginRateLimited(rateLimitKey)) return null;
+        const rateLimited = await consumeRateLimit({
+          scope: "password-login",
+          identifier: rateLimitKey,
+          limit: 8,
+          windowSeconds: 15 * 60,
+        });
+        if (rateLimited) return null;
 
         const user = await prisma.user.findUnique({ where: { email: parsed.email } });
         const passwordMatches = await verifyPasswordHash(parsed.password, user?.passwordHash);
         if (!user || !passwordMatches) {
-          recordPasswordLoginFailure(rateLimitKey);
           return null;
         }
 
-        clearPasswordLoginFailures(rateLimitKey);
+        await clearRateLimit("password-login", rateLimitKey);
         return { id: user.id, email: user.email, name: user.name, role: user.role };
       },
     }),

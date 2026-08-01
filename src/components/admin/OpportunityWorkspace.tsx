@@ -20,6 +20,14 @@ import {
   GenerateProposalButton,
   RunOpportunityScanButton,
 } from "@/components/admin/OpportunityActions";
+import {
+  CampaignControl,
+  ConnectorControls,
+} from "@/components/admin/OpportunityControls";
+import {
+  bootstrapOpportunityEngine,
+  SUPPORTED_CONNECTOR_TYPES,
+} from "@/lib/opportunities/engine";
 
 export type OpportunityView =
   | "opportunities"
@@ -60,6 +68,7 @@ export default async function OpportunityWorkspace({
 }: {
   view: OpportunityView;
 }) {
+  await bootstrapOpportunityEngine();
   const [
     leads,
     campaigns,
@@ -77,7 +86,10 @@ export default async function OpportunityWorkspace({
       },
     }),
     prisma.searchCampaign.findMany({ orderBy: { updatedAt: "desc" } }),
-    prisma.sourceConnector.findMany({ orderBy: { name: "asc" } }),
+    prisma.sourceConnector.findMany({
+      where: { connectorType: { in: [...SUPPORTED_CONNECTOR_TYPES] } },
+      orderBy: { name: "asc" },
+    }),
     prisma.proposalDraft.findMany({
       orderBy: { createdAt: "desc" },
       take: 100,
@@ -278,6 +290,7 @@ export default async function OpportunityWorkspace({
                 Minimum budget: {campaign.minimumBudget ? `$${campaign.minimumBudget}` : "not set"} ·
                 Minimum margin: {campaign.minimumMargin ? `${campaign.minimumMargin}%` : "not set"}
               </p>
+              <CampaignControl campaignId={campaign.id} enabled={campaign.enabled} />
             </article>
           ))}
         </RecordGrid>
@@ -310,7 +323,10 @@ export default async function OpportunityWorkspace({
                 <Detail label="Policy" value={connector.policyStatus} />
                 <Detail label="Authentication" value={connector.authStatus} />
                 <Detail label="Retention" value={connector.retentionDays ? `${connector.retentionDays} days` : "Not set"} />
+                <Detail label="Collection" value={connector.enabled ? "Enabled" : "Disabled"} />
+                <Detail label="Last success" value={connector.lastSuccessAt ? connector.lastSuccessAt.toLocaleString() : "Not tested"} />
               </dl>
+              <ConnectorControls connectorId={connector.id} enabled={connector.enabled} />
             </article>
           ))}
         </RecordGrid>

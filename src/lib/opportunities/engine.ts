@@ -2,7 +2,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { callClaude } from "@/lib/ai/claude";
 import { prisma } from "@/lib/prisma";
 
-type CanonicalOpportunity = {
+export type CanonicalOpportunity = {
   externalId: string;
   title: string;
   description: string;
@@ -15,6 +15,7 @@ type CanonicalOpportunity = {
   budgetMax?: number;
   currency?: string;
   publishedAt?: string;
+  attribution: string;
 };
 
 type OpportunityScores = {
@@ -50,6 +51,55 @@ type RemotiveJob = {
 };
 
 type RemotiveResponse = { jobs?: RemotiveJob[] };
+
+type RemoteOkJob = {
+  id?: number | string;
+  epoch?: number;
+  date?: string;
+  company?: string;
+  position?: string;
+  tags?: string[];
+  description?: string;
+  location?: string;
+  salary_min?: number;
+  salary_max?: number;
+  url?: string;
+  apply_url?: string;
+};
+
+type HimalayasJob = {
+  title?: string;
+  excerpt?: string;
+  companyName?: string;
+  employmentType?: string;
+  minSalary?: number | null;
+  maxSalary?: number | null;
+  salaryPeriod?: string;
+  currency?: string | null;
+  locationRestrictions?: Array<
+    string | { name?: string; alpha2?: string; slug?: string }
+  >;
+  categories?: string[];
+  parentCategories?: string[];
+  description?: string;
+  pubDate?: number;
+  applicationLink?: string;
+  guid?: string;
+};
+
+type HimalayasResponse = { jobs?: HimalayasJob[] };
+
+export const SUPPORTED_CONNECTOR_TYPES = [
+  "remotive_api",
+  "remoteok_api",
+  "himalayas_api",
+] as const;
+
+export type SupportedConnectorType = (typeof SUPPORTED_CONNECTOR_TYPES)[number];
+
+export function connectorTypeIsSupported(value: string): value is SupportedConnectorType {
+  return SUPPORTED_CONNECTOR_TYPES.includes(value as SupportedConnectorType);
+}
 
 const DISCOVERY_INTERVAL_MS = 4 * 60 * 60_000;
 let discoveryRunning = false;
@@ -256,7 +306,11 @@ async function fetchRemotive(endpoint: string) {
   if (!response.ok)
     throw new Error(`Remotive API returned ${response.status}`);
   const payload = (await response.json()) as RemotiveResponse;
-  return (payload.jobs || []).slice(0, 100).flatMap((job) => {
+  return normalizeRemotiveJobs(payload.jobs || []);
+}
+
+export function normalizeRemotiveJobs(jobs: RemotiveJob[]) {
+  return jobs.slice(0, 100).flatMap((job) => {
     if (!job.id || !job.url || !job.title) return [];
     const salary = parseSalary(job.salary);
     return [
@@ -270,10 +324,132 @@ async function fetchRemotive(endpoint: string) {
         location: job.candidate_required_location,
         engagementModel: job.job_type,
         publishedAt: job.publication_date,
+        attribution: "Remotive",
         ...salary,
       } satisfies CanonicalOpportunity,
     ];
   });
+}
+
+async function fetchRemoteOk(endpoint: string) {
+  const url = new URL(endpoint);
+  if (url.protocol !== "https:" || url.hostname !== "remoteok.com")
+    throw new Error("Remote OK connector endpoint must use https://remoteok.com");
+  const response = await fetch(url, {
+    headers: {
+      Accept: "application/json",
+      "User-Agent":
+        "DagangOS-Opportunity-Engine/1.0 (+https://bot.azharinoyume.cloud)",
+    },
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!response.ok) throw new Error(`Remote OK API returned ${response.status}`);
+  const payload = (await response.json()) as RemoteOkJob[];
+  if (!Array.isArray(payload)) throw new Error("Remote OK returned an invalid response");
+  return normalizeRemoteOkJobs(payload);
+}
+
+export function normalizeRemoteOkJobs(jobs: RemoteOkJob[]) {
+  return jobs.slice(0, 101).flatMap((job) => {
+    const sourceUrl = job.url || job.apply_url;
+    if (!job.id || !sourceUrl || !job.position) return [];
+    return [
+      {
+        externalId: String(job.id),
+        title: job.position.slice(0, 500),
+        description: stripHtml(job.description || ""),
+        sourceUrl,
+        source: "remoteok",
+        category: job.tags?.join(", "),
+        location: job.location,
+        engagementModel: job.tags?.find((tag) => /full.?time|part.?time|contract/i.test(tag)),
+        budgetMin: job.salary_min || undefined,
+        budgetMax: job.salary_max || undefined,
+        currency: job.salary_min || job.salary_max ? "USD" : undefined,
+        publishedAt:
+          job.date || (job.epoch ? new Date(job.epoch * 1_000).toISOString() : undefined),
+        attribution: "Remote OK",
+      } satisfies CanonicalOpportunity,
+    ];
+  }).slice(0, 100);
+}
+
+async function fetchHimalayas(endpoint: string) {
+  const url = new URL(endpoint);
+  if (url.protocol !== "https:" || url.hostname !== "himalayas.app")
+    throw new Error("Himalayas connector endpoint must use https://himalayas.app");
+  const response = await fetch(url, {
+    headers: {
+      Accept: "application/json",
+      "User-Agent":
+        "DagangOS-Opportunity-Engine/1.0 (+https://bot.azharinoyume.cloud)",
+    },
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!response.ok) throw new Error(`Himalayas API returned ${response.status}`);
+  const payload = (await response.json()) as HimalayasResponse;
+  if (!Array.isArray(payload.jobs)) throw new Error("Himalayas returned an invalid response");
+  return normalizeHimalayasJobs(payload.jobs);
+}
+
+export function normalizeHimalayasJobs(jobs: HimalayasJob[]) {
+  return jobs.flatMap((job) => {
+    if (!job.guid || !job.applicationLink || !job.title) return [];
+    return [
+      {
+        externalId: job.guid,
+        title: job.title.slice(0, 500),
+        description: stripHtml(job.description || job.excerpt || ""),
+        sourceUrl: job.applicationLink,
+        source: "himalayas",
+        category: [...(job.parentCategories || []), ...(job.categories || [])].join(", "),
+        location:
+          job.locationRestrictions
+            ?.map((location) =>
+              typeof location === "string"
+                ? location
+                : location.name || location.alpha2 || location.slug || "",
+            )
+            .filter(Boolean)
+            .join(", ") || "Worldwide / remote",
+        engagementModel: job.employmentType,
+        budgetMin: job.minSalary || undefined,
+        budgetMax: job.maxSalary || undefined,
+        currency: job.currency || undefined,
+        publishedAt: job.pubDate
+          ? new Date(job.pubDate > 1_000_000_000_000 ? job.pubDate : job.pubDate * 1_000).toISOString()
+          : undefined,
+        attribution: "Himalayas",
+      } satisfies CanonicalOpportunity,
+    ];
+  });
+}
+
+function configurationObject(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+async function fetchConnectorOpportunities(
+  connectorType: string,
+  configuration: unknown,
+) {
+  const config = configurationObject(configuration);
+  switch (connectorType) {
+    case "remotive_api":
+      return fetchRemotive(
+        String(config.endpoint || "https://remotive.com/api/remote-jobs?limit=100"),
+      );
+    case "remoteok_api":
+      return fetchRemoteOk(String(config.endpoint || "https://remoteok.com/api"));
+    case "himalayas_api":
+      return fetchHimalayas(
+        String(config.endpoint || "https://himalayas.app/jobs/api?limit=20&offset=0"),
+      );
+    default:
+      throw new Error(`Connector adapter is not implemented: ${connectorType}`);
+  }
 }
 
 async function saveOpportunity(
@@ -314,7 +490,7 @@ async function saveOpportunity(
     pipelineStatus: scores.score >= 65 ? "scored" : "new_lead",
     rawSnapshot: {
       ...opportunity,
-      attribution: "Remotive",
+      attribution: opportunity.attribution,
       collectedAt: new Date().toISOString(),
     } as unknown as Prisma.InputJsonValue,
   };
@@ -362,31 +538,69 @@ export async function bootstrapOpportunityEngine() {
           attributionRequired: true,
         },
       },
-      update: {},
+      update: {
+        connectorType: "remotive_api",
+        collectionMethod: "public_api",
+        permissionMethod: "published_public_api_terms",
+        policyStatus: "approved",
+        authStatus: "not_required",
+        allowedActions: ["collect", "score", "draft_proposal", "link_to_source"],
+        retentionDays: 90,
+        rateLimit: { minimumIntervalMinutes: 240, maximumJobsPerRun: 100 },
+        configuration: {
+          endpoint: "https://remotive.com/api/remote-jobs?limit=100",
+          attributionRequired: true,
+        },
+      },
     });
 
-    for (const [name, connectorType, permissionMethod] of [
-      ["Upwork", "official_api", "official_api_approval_required"],
-      ["Indeed", "partner_feed", "partner_or_publisher_access_required"],
-      ["Fiverr", "manual_alert", "manual_or_official_access_required"],
+    for (const [name, connectorType, endpoint, retentionDays, maximumJobsPerRun] of [
+      ["Remote OK Public API", "remoteok_api", "https://remoteok.com/api", 90, 100],
+      ["Himalayas Public API", "himalayas_api", "https://himalayas.app/jobs/api?limit=20&offset=0", 90, 20],
     ] as const) {
       await transaction.sourceConnector.upsert({
         where: { name },
         create: {
           name,
           connectorType,
-          collectionMethod: "disabled_until_authorized",
-          permissionMethod,
-          policyStatus: "review_required",
-          health: "disabled",
-          authStatus: "not_connected",
-          enabled: false,
-          allowedActions: ["manual_intake"],
-          configuration: {},
+          collectionMethod: "public_api",
+          permissionMethod: "published_public_api_terms",
+          policyStatus: "approved",
+          health: "healthy",
+          authStatus: "not_required",
+          enabled: true,
+          allowedActions: ["collect", "score", "draft_proposal", "link_to_source"],
+          retentionDays,
+          rateLimit: { minimumIntervalMinutes: connectorType === "himalayas_api" ? 1440 : 240, maximumJobsPerRun },
+          configuration: { endpoint, attributionRequired: true },
         },
-        update: {},
+        update: {
+          connectorType,
+          collectionMethod: "public_api",
+          permissionMethod: "published_public_api_terms",
+          policyStatus: "approved",
+          authStatus: "not_required",
+          allowedActions: ["collect", "score", "draft_proposal", "link_to_source"],
+          retentionDays,
+          rateLimit: { minimumIntervalMinutes: connectorType === "himalayas_api" ? 1440 : 240, maximumJobsPerRun },
+          configuration: { endpoint, attributionRequired: true },
+        },
       });
     }
+
+    const unavailableNames = ["Upwork", "Indeed", "Fiverr"];
+    await transaction.sourceConnector.updateMany({
+      where: { name: { in: unavailableNames } },
+      data: {
+        enabled: false,
+        health: "unavailable",
+        policyStatus: "access_required",
+        authStatus: "not_connected",
+      },
+    });
+    await transaction.sourceConnector.deleteMany({
+      where: { name: { in: unavailableNames }, leads: { none: {} } },
+    });
 
     const campaignCount = await transaction.searchCampaign.count();
     if (!campaignCount) {
@@ -420,7 +634,7 @@ export async function bootstrapOpportunityEngine() {
           ],
           locations: ["worldwide", "remote"],
           languages: ["en"],
-          sources: ["remotive"],
+          sources: ["remotive", "remoteok", "himalayas"],
           productRoutes: CAPABILITY_ROUTES.map((route) => route.route),
           minimumMargin: 20,
           schedule: "every 4 hours",
@@ -459,21 +673,12 @@ export async function runOpportunityDiscovery(options?: { force?: boolean }) {
         data: { lastRunAt: new Date(), health: "running" },
       });
       try {
-        const configuration =
-          connector.configuration &&
-          typeof connector.configuration === "object" &&
-          !Array.isArray(connector.configuration)
-            ? (connector.configuration as Record<string, unknown>)
-            : {};
-        const opportunities =
-          connector.connectorType === "remotive_api"
-            ? await fetchRemotive(
-                String(
-                  configuration.endpoint ||
-                    "https://remotive.com/api/remote-jobs?limit=100",
-                ),
-              )
-            : [];
+        if (!connectorTypeIsSupported(connector.connectorType))
+          throw new Error(`Enabled connector has no production adapter: ${connector.connectorType}`);
+        const opportunities = await fetchConnectorOpportunities(
+          connector.connectorType,
+          connector.configuration,
+        );
         fetched += opportunities.length;
         for (const opportunity of opportunities) {
           if (!campaignAllows(opportunity, campaigns)) {
@@ -510,6 +715,42 @@ export async function runOpportunityDiscovery(options?: { force?: boolean }) {
     return { skipped: false, fetched, created, updated, rejected, errors };
   } finally {
     discoveryRunning = false;
+  }
+}
+
+export async function testSourceConnector(connectorId: string) {
+  const connector = await prisma.sourceConnector.findUnique({ where: { id: connectorId } });
+  if (!connector) throw new Error("Source connector not found");
+  if (connector.policyStatus !== "approved")
+    throw new Error("Source connector policy is not approved");
+  if (!connectorTypeIsSupported(connector.connectorType))
+    throw new Error(`No production adapter exists for ${connector.name}`);
+  const startedAt = Date.now();
+  await prisma.sourceConnector.update({
+    where: { id: connector.id },
+    data: { health: "testing", lastRunAt: new Date() },
+  });
+  try {
+    const opportunities = await fetchConnectorOpportunities(
+      connector.connectorType,
+      connector.configuration,
+    );
+    await prisma.sourceConnector.update({
+      where: { id: connector.id },
+      data: { health: "healthy", lastSuccessAt: new Date(), errorRate: 0 },
+    });
+    return {
+      connector: connector.name,
+      fetched: opportunities.length,
+      latencyMs: Date.now() - startedAt,
+      sampleTitle: opportunities[0]?.title || null,
+    };
+  } catch (error) {
+    await prisma.sourceConnector.update({
+      where: { id: connector.id },
+      data: { health: "failed", errorRate: 100 },
+    });
+    throw error;
   }
 }
 

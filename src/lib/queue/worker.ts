@@ -10,6 +10,7 @@ import {
   outputDimensions,
 } from "@/lib/video360/contracts";
 import { recalculateOrderProfit } from "@/lib/accounting/profit";
+import { z } from "zod";
 
 const serviceUrl = process.env.RENDER_SERVICE_URL || "http://127.0.0.1:4100";
 const secret = process.env.RENDER_SERVICE_SECRET || "";
@@ -29,6 +30,39 @@ type ServiceStatus = {
   error?: string;
   errorCode?: string;
 };
+
+const TimelineManifestSchema = z.object({
+  schemaVersion: z.literal("azyume.timeline.v1"),
+  targetDurationMs: z.number().int().positive(),
+  plan: z.object({
+    segments: z.array(z.object({
+      sourceStartMs: z.number().int().min(0),
+      sourceEndMs: z.number().int().positive(),
+      purpose: z.string(),
+      treatment: z.string(),
+    })).min(1).max(30),
+  }),
+  captions: z.array(z.object({
+    startMs: z.number().int().min(0),
+    endMs: z.number().int().positive(),
+    text: z.string().min(1).max(2_000),
+  })).max(300).default([]),
+});
+
+function timelineOutputDimensions(aspectRatio: string, resolution: string) {
+  const longEdge = resolution.includes("4K")
+    ? 3840
+    : resolution.includes("1440")
+      ? 2560
+      : resolution.includes("720")
+        ? 1280
+        : 1920;
+  const even = (value: number) => Math.round(value / 2) * 2;
+  if (aspectRatio === "9:16") return { width: even((longEdge * 9) / 16), height: longEdge };
+  if (aspectRatio === "1:1") return { width: longEdge, height: longEdge };
+  if (aspectRatio === "4:5") return { width: even((longEdge * 4) / 5), height: longEdge };
+  return { width: longEdge, height: even((longEdge * 9) / 16) };
+}
 
 async function processRenderJob(job: Job<JobData>) {
   if (!secret) throw new Error("RENDER_SERVICE_SECRET is required");
@@ -52,11 +86,15 @@ async function processRenderJob(job: Job<JobData>) {
       errorMessage: null,
     },
   });
-  const [render, order, asset] = await Promise.all([
+  const [render, order, asset, timelineRecord] = await Promise.all([
     prisma.render.findUnique({ where: { id: renderId } }),
     prisma.order.findUnique({ where: { id: orderId } }),
     prisma.uploadedAsset.findFirst({
       where: { orderId, status: "VERIFIED" },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.timelineManifest.findFirst({
+      where: { orderId },
       orderBy: { createdAt: "desc" },
     }),
   ]);
@@ -78,6 +116,20 @@ async function processRenderJob(job: Job<JobData>) {
     }),
   ]);
   const videoUrl = await getSignedDownloadUrl(asset.r2Key, 3 * 3600);
+  const editor360 =
+    order.editingMode === "360"
+      ? Editor360ConfigSchema.parse(order.editorConfig)
+      : null;
+  const timeline = editor360
+    ? null
+    : TimelineManifestSchema.parse(timelineRecord?.manifest);
+  const fps = parseFps(order.frameRate);
+  const timelineDurationMs = timeline
+    ? timeline.plan.segments.reduce(
+        (total, segment) => total + segment.sourceEndMs - segment.sourceStartMs,
+        0,
+      )
+    : null;
   const props = {
     videoUrl,
     title: order.purpose || "",
@@ -87,26 +139,22 @@ async function processRenderJob(job: Job<JobData>) {
     zoomStart: 1,
     zoomEnd: 1.04,
     vignette: true,
+    ...(timeline
+      ? {
+          segments: timeline.plan.segments,
+          captions: timeline.captions,
+          captionStyle: order.captionStyle || "minimal",
+          style: order.visualStyle || "cinematic",
+          colorGrade: order.colorGrade || "natural",
+        }
+      : {}),
   };
-  const compositionId = styleToComposition(order.visualStyle || "cinematic");
-  const editor360 =
-    order.editingMode === "360"
-      ? Editor360ConfigSchema.parse(order.editorConfig)
-      : null;
+  const compositionId = editor360
+    ? styleToComposition(order.visualStyle || "cinematic")
+    : "timeline";
   const dimensions = editor360
     ? outputDimensions(editor360.outputAspectRatio, order.resolution)
-    : {
-        width: order.resolution.includes("4K")
-          ? 3840
-          : order.resolution.includes("720")
-            ? 1280
-            : 1920,
-        height: order.resolution.includes("4K")
-          ? 2160
-          : order.resolution.includes("720")
-            ? 720
-            : 1080,
-      };
+    : timelineOutputDimensions(order.aspectRatio || "16:9", order.resolution);
   const response = await fetch(`${serviceUrl}/render`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-render-secret": secret },
@@ -115,10 +163,25 @@ async function processRenderJob(job: Job<JobData>) {
       compositionId,
       inputProps: props,
       outputKey: render.outputR2Key,
-      fps: parseFps(order.frameRate),
+      fps,
       width: dimensions.width,
       height: dimensions.height,
       concurrency: 2,
+      ...(timeline && timelineDurationMs
+        ? {
+            durationInFrames: Math.max(1, Math.ceil((timelineDurationMs / 1_000) * fps)),
+            processing: {
+              kind: "timeline",
+              sourceUrl: videoUrl,
+              sourceDurationMs: asset.durationMs,
+              segments: timeline.plan.segments,
+              captions: timeline.captions,
+              captionStyle: order.captionStyle || "minimal",
+              style: order.visualStyle || "cinematic",
+              colorGrade: order.colorGrade || "natural",
+            },
+          }
+        : {}),
       ...(editor360
         ? {
             processing: {
@@ -212,7 +275,13 @@ async function processRenderJob(job: Job<JobData>) {
       }),
       prisma.order.update({
         where: { id: orderId },
-          data: { status: "DRAFT_REVIEW", actualCredits },
+        data: {
+          status:
+            order.manualReviewRequired && !order.adminApproved
+              ? "PRODUCTION_REVIEW_REQUIRED"
+              : "DRAFT_REVIEW",
+          actualCredits,
+        },
       }),
       prisma.qualityCheck.upsert({
         where: { renderId },

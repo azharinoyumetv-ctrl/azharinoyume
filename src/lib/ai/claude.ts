@@ -1,22 +1,67 @@
 import { prisma } from "@/lib/prisma";
 import { generateAIText } from "@/lib/ai/provider";
+import { z } from "zod";
+
+const LeadScoreSchema = z.object({
+  score: z.number().min(0).max(100),
+  breakdown: z.record(z.string(), z.number().min(0).max(10)),
+  proposal: z.string().min(1).optional(),
+});
 
 interface AICallOptions {
   orderId?: string;
   purpose: string;
   usePremium?: boolean;
   systemPrompt?: string;
+  maxTokens?: number;
+}
+
+function usdPerMillionTokens(provider: string, model: string) {
+  const envNumber = (name: string, fallback: number) => {
+    const value = Number(process.env[name]);
+    return Number.isFinite(value) && value >= 0 ? value : fallback;
+  };
+
+  if (provider === "gemini") {
+    const premium = model.toLowerCase().includes("pro");
+    return premium
+      ? {
+          input: envNumber("GEMINI_PRO_INPUT_USD_PER_MILLION_TOKENS", 1.25),
+          output: envNumber("GEMINI_PRO_OUTPUT_USD_PER_MILLION_TOKENS", 10),
+        }
+      : {
+          input: envNumber("GEMINI_FLASH_INPUT_USD_PER_MILLION_TOKENS", 0.3),
+          output: envNumber("GEMINI_FLASH_OUTPUT_USD_PER_MILLION_TOKENS", 2.5),
+        };
+  }
+
+  const economy = model.toLowerCase().includes("haiku");
+  return economy
+    ? {
+        input: envNumber("ANTHROPIC_HAIKU_INPUT_USD_PER_MILLION_TOKENS", 1),
+        output: envNumber("ANTHROPIC_HAIKU_OUTPUT_USD_PER_MILLION_TOKENS", 5),
+      }
+    : {
+        input: envNumber("ANTHROPIC_SONNET_INPUT_USD_PER_MILLION_TOKENS", 3),
+        output: envNumber("ANTHROPIC_SONNET_OUTPUT_USD_PER_MILLION_TOKENS", 15),
+      };
 }
 
 export async function callClaude(prompt: string, opts: AICallOptions): Promise<string> {
-  const response = await generateAIText({ prompt, premium: opts.usePremium, maxTokens: 1024, system: opts.systemPrompt || "You are a professional video editing assistant. Be concise and practical." });
+  const response = await generateAIText({
+    prompt,
+    premium: opts.usePremium,
+    maxTokens: opts.maxTokens ?? 1024,
+    system:
+      opts.systemPrompt ||
+      "You are a professional video editing assistant. Be concise and practical.",
+  });
   const model = response.model;
   const text = response.text;
 
-  // Cost estimation (approximate)
-  const inputCost = model.includes("haiku") ? 0.00000025 : 0.000003;
-  const outputCost = model.includes("haiku") ? 0.00000125 : 0.000015;
-  const costUsd = response.inputTokens * inputCost + response.outputTokens * outputCost;
+  const rates = usdPerMillionTokens(response.provider, model);
+  const costUsd =
+    (response.inputTokens * rates.input + response.outputTokens * rates.output) / 1_000_000;
 
   if (opts.orderId) {
     await prisma.aiUsageLog.create({
@@ -145,6 +190,7 @@ export async function scoreJobLead(job: { title: string; description: string; bu
   score: number;
   breakdown: Record<string, number>;
   proposal?: string;
+  model: string;
 }> {
   const prompt = `Score this freelance video editing job lead and draft a proposal if score >= 65.
 
@@ -176,11 +222,9 @@ Respond in this JSON format:
   "proposal": "Dear client, ..."
 }`;
 
-  const text = (await generateAIText({ prompt, maxTokens: 600 })).text || "{}";
-  try {
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    return jsonMatch ? JSON.parse(jsonMatch[0]) : { score: 0, breakdown: {} };
-  } catch {
-    return { score: 0, breakdown: {} };
-  }
+  const result = await generateAIText({ prompt, maxTokens: 600 });
+  const jsonMatch = result.text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error("Opportunity scoring did not return JSON");
+  const parsed = LeadScoreSchema.parse(JSON.parse(jsonMatch[0]));
+  return { ...parsed, model: result.model };
 }

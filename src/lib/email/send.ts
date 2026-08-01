@@ -3,7 +3,9 @@ import { Resend } from "resend";
 // Lazy init so build-time module evaluation doesn't throw without env vars
 let _resend: Resend | null = null;
 function getResend() {
-  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY || "re_placeholder");
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) throw new Error("RESEND_API_KEY is required to send transactional email");
+  if (!_resend) _resend = new Resend(apiKey);
   return _resend;
 }
 const FROM = process.env.EMAIL_FROM || "noreply@azharinoyume.cloud";

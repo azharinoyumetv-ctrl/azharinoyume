@@ -1,5 +1,8 @@
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, CreateMultipartUploadCommand, UploadPartCommand, CompleteMultipartUploadCommand, AbortMultipartUploadCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { createWriteStream } from "node:fs";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 
 export const r2 = new S3Client({
   region: "auto",
@@ -53,6 +56,17 @@ export async function headR2Object(key: string) {
 
 export async function objectExists(key: string) {
   try { await headR2Object(key); return true; } catch { return false; }
+}
+
+export async function downloadR2ObjectToFile(key: string, destination: string) {
+  const result = await r2.send(new GetObjectCommand({ Bucket: BUCKET, Key: key }));
+  if (!result.Body) throw new Error("R2 object returned an empty body");
+  const body = result.Body as unknown;
+  if (body instanceof Readable) {
+    await pipeline(body, createWriteStream(destination, { flags: "wx" }));
+    return destination;
+  }
+  throw new Error("R2 object body is not a readable stream");
 }
 
 // R2 key helpers

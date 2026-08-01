@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@/generated/prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { consumeRateLimit } from "@/lib/security/rate-limit";
 
 const RegistrationSchema = z.object({
   name: z.string().trim().min(2).max(100),
@@ -16,26 +17,12 @@ const RegistrationSchema = z.object({
     .regex(/[0-9]/, "Password must include a number"),
 });
 
-const WINDOW_MS = 15 * 60_000;
-const MAX_ATTEMPTS = 5;
-const attempts = new Map<string, { count: number; startedAt: number }>();
-
 function clientAddress(request: NextRequest) {
   return (
     request.headers.get("cf-connecting-ip") ||
     request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     "unknown"
   );
-}
-
-function isRateLimited(key: string, now = Date.now()) {
-  const current = attempts.get(key);
-  if (!current || now - current.startedAt >= WINDOW_MS) {
-    attempts.set(key, { count: 1, startedAt: now });
-    return false;
-  }
-  current.count += 1;
-  return current.count > MAX_ATTEMPTS;
 }
 
 export async function POST(request: NextRequest) {
@@ -47,7 +34,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (isRateLimited(clientAddress(request))) {
+  if (await consumeRateLimit({
+    scope: "registration",
+    identifier: clientAddress(request),
+    limit: 5,
+    windowSeconds: 15 * 60,
+  })) {
     return NextResponse.json(
       { error: "Too many registration attempts. Please wait and try again." },
       { status: 429 },

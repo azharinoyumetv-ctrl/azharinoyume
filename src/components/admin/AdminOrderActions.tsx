@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import { Play, Pause, RefreshCw, Check, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 interface Order { id: string; status: string; manualReviewRequired: boolean; adminApproved: boolean; }
 
 export default function AdminOrderActions({ order }: { order: Order }) {
   const [loading, setLoading] = useState<string | null>(null);
   const [message, setMessage] = useState("");
+  const router = useRouter();
 
   async function action(endpoint: string, body: object = {}, key: string) {
     setLoading(key);
@@ -20,6 +22,7 @@ export default function AdminOrderActions({ order }: { order: Order }) {
     const data = await res.json();
     setLoading(null);
     setMessage(res.ok ? "Done." : data.error || "Failed");
+    if (res.ok) router.refresh();
   }
 
   return (
@@ -28,41 +31,41 @@ export default function AdminOrderActions({ order }: { order: Order }) {
 
       {order.manualReviewRequired && !order.adminApproved && <div className="text-xs text-amber-400 rounded-lg bg-amber-500/10 px-3 py-2">This order needs a human review before delivery.</div>}
 
-      <button
+      {order.manualReviewRequired && !order.adminApproved && <button
         onClick={() => action(`/api/admin/orders/${order.id}/approve`, {}, "approve")}
         disabled={loading === "approve"}
         className="w-full flex items-center justify-center gap-2 py-2.5 glass border border-white/10 rounded-lg text-sm hover:border-white/20 transition-all disabled:opacity-50"
       >
         {loading === "approve" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4 text-green-400" />}
         Approve Order
-      </button>
+      </button>}
 
-      <button
+      {["ANALYSIS_FAILED", "PRODUCTION_FAILED", "RENDER_FAILED", "QA_FAILED"].includes(order.status) && <button
         onClick={() => action(`/api/admin/orders/${order.id}/retry`, {}, "retry")}
         disabled={loading === "retry"}
         className="w-full flex items-center justify-center gap-2 py-2.5 glass border border-white/10 rounded-lg text-sm hover:border-white/20 transition-all disabled:opacity-50"
       >
         {loading === "retry" ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4 text-blue-400" />}
         Retry Processing
-      </button>
+      </button>}
 
-      <button
+      {["DRAFT_REVIEW", "PRODUCTION_REVIEW_REQUIRED"].includes(order.status) && <button
         onClick={() => action(`/api/admin/orders/${order.id}/mark-delivered`, {}, "deliver")}
         disabled={loading === "deliver"}
         className="w-full flex items-center justify-center gap-2 py-2.5 glass border border-white/10 rounded-lg text-sm hover:border-white/20 transition-all disabled:opacity-50"
       >
         {loading === "deliver" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4 text-gold-400" />}
         Mark Delivered
-      </button>
+      </button>}
 
-      <button
+      {!['DELIVERED', 'CANCELLED', 'PRODUCTION_REVIEW_REQUIRED'].includes(order.status) && <button
         onClick={() => action(`/api/admin/orders/${order.id}/pause`, {}, "pause")}
         disabled={loading === "pause"}
         className="w-full flex items-center justify-center gap-2 py-2.5 glass border border-red-500/20 text-red-400 rounded-lg text-sm hover:border-red-500/40 transition-all disabled:opacity-50"
       >
         {loading === "pause" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Pause className="w-4 h-4" />}
         Pause Order
-      </button>
+      </button>}
 
       {message && <div className="text-xs text-center text-muted-foreground pt-1">{message}</div>}
     </div>

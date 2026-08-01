@@ -65,7 +65,7 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
     const page = await browser.newPage();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const html = buildInvoiceHtml(invoiceData as any);
-    await page.setContent(html, { waitUntil: "networkidle0" });
+    await page.setContent(html, { waitUntil: "domcontentloaded" });
     pdfBuffer = (await page.pdf({
       format: "A4",
       printBackground: true,

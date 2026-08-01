@@ -8,9 +8,14 @@ export async function POST(_req: NextRequest, props: { params: Promise<{ orderId
   const session = await getServerSession(authOptions);
   if (!session || session.user?.role !== "admin") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  await prisma.order.update({ where: { id: params.orderId }, data: { status: "failed" } });
-  await prisma.adminAction.create({
-    data: { adminId: session.user.id, action: "pause_order", targetType: "order", targetId: params.orderId },
-  });
+  const order = await prisma.order.findUnique({ where: { id: params.orderId }, select: { id: true } });
+  if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
+  await prisma.$transaction([
+    prisma.order.update({ where: { id: params.orderId }, data: { status: "PRODUCTION_REVIEW_REQUIRED", manualReviewRequired: true, adminApproved: false } }),
+    prisma.reviewTask.create({ data: { orderId: params.orderId, reason: "Paused by operator", riskScore: 50 } }),
+    prisma.adminAction.create({
+      data: { adminId: session.user.id, action: "pause_order", targetType: "order", targetId: params.orderId },
+    }),
+  ]);
   return NextResponse.json({ ok: true });
 }
