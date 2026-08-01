@@ -67,6 +67,7 @@ const CATEGORY_RULES: CategoryRule[] = [
       /\bsite reliability\b|\bsre\b/i,
       /\bplatform engineer/i,
       /\bcloud engineer/i,
+      /\bcloud[- ]native architect/i,
       /\binfrastructure engineer/i,
       /\bkubernetes\b|\bterraform\b/i,
     ],
@@ -141,7 +142,7 @@ const CATEGORY_RULES: CategoryRule[] = [
   {
     category: "Sales",
     serviceFamily: "Sales",
-    patterns: [/\bsales|account executive|business development|sales development/i],
+    patterns: [/\bsales\b|account executive|business development|sales development/i],
   },
   {
     category: "Customer Support",
@@ -166,7 +167,7 @@ const CATEGORY_RULES: CategoryRule[] = [
   {
     category: "Operations",
     serviceFamily: "Business Operations",
-    patterns: [/\boperations|project manager|program manager|virtual assistant|administrator/i],
+    patterns: [/\boperations|project manager|program manager|product manager|product management|virtual assistant|administrator/i],
   },
 ];
 
@@ -231,13 +232,32 @@ export function extractOpportunityKeywords(opportunity: CanonicalOpportunity) {
 }
 
 export function classifyOpportunity(opportunity: CanonicalOpportunity) {
-  const primaryText = `${opportunity.title} ${opportunity.category || ""}`;
-  const match = CATEGORY_RULES.find((rule) =>
-    rule.patterns.some((pattern) => pattern.test(primaryText)),
+  if (/not finding.{0,20}fit|apply here|general application|talent pool/i.test(opportunity.title)) {
+    return { category: "Other" as const, serviceFamily: "Unclassified" };
+  }
+  const titleMatch = CATEGORY_RULES.find((rule) =>
+    rule.patterns.some((pattern) => pattern.test(opportunity.title)),
   );
+  if (titleMatch) return { category: titleMatch.category, serviceFamily: titleMatch.serviceFamily };
+
+  const sourceCategory = compact(opportunity.category).toLowerCase();
+  const fallbackCategories: Record<string, { category: (typeof OPPORTUNITY_CATEGORIES)[number]; serviceFamily: string }> = {
+    "video editing": { category: "Video Editing", serviceFamily: "Video Production" },
+    "audio and video": { category: "Video Editing", serviceFamily: "Video Production" },
+    "software development": { category: "Software Engineering", serviceFamily: "Software Development" },
+    "devops / sysadmin": { category: "DevOps & Infrastructure", serviceFamily: "Infrastructure & Cloud" },
+    "data": { category: "Data & AI", serviceFamily: "Data & Artificial Intelligence" },
+    "design": { category: "Design", serviceFamily: "Creative Design" },
+    "marketing": { category: "Marketing", serviceFamily: "Marketing" },
+    "sales": { category: "Sales", serviceFamily: "Sales" },
+    "customer service": { category: "Customer Support", serviceFamily: "Customer Operations" },
+    "finance / legal": { category: "Finance & Accounting", serviceFamily: "Finance" },
+    "human resources": { category: "Operations", serviceFamily: "Business Operations" },
+  };
+  const fallback = sourceCategory.includes(",") ? undefined : fallbackCategories[sourceCategory];
   return {
-    category: match?.category || "Other",
-    serviceFamily: match?.serviceFamily || "Unclassified",
+    category: fallback?.category || "Other",
+    serviceFamily: fallback?.serviceFamily || "Unclassified",
   };
 }
 

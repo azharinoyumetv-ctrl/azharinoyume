@@ -47,6 +47,24 @@ describe("opportunity classification and product routing", () => {
     expect(result.productRoute).toBe("Opportunity Gap Radar");
   });
 
+  it("does not classify a generic application title from a noisy source tag", () => {
+    const result = scoreOpportunity(opportunity({
+      title: "Not Finding Your Fit? Apply Here",
+      category: "DevOps / Sysadmin",
+    }));
+    expect(result.category).toBe("Other");
+    expect(result.productRoute).toBe("Opportunity Gap Radar");
+  });
+
+  it("uses product-management title evidence before unrelated source tags", () => {
+    const result = scoreOpportunity(opportunity({
+      title: "Vice President, Salesforce Product Management",
+      category: "DevOps / Sysadmin",
+    }));
+    expect(result.category).toBe("Operations");
+    expect(result.productRoute).toBe("Opportunity Gap Radar");
+  });
+
   it("applies category, job type, source, route, and minimum-budget campaign fields", () => {
     const job = opportunity({
       title: "Video Editor",
