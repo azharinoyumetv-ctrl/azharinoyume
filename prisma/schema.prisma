@@ -569,10 +569,12 @@ model JobLead {
   subcategory        String?
   deliverables       Json     @default("[]")
   requiredSkills     Json     @default("[]") @map("required_skills")
+  keywords           Json     @default("[]")
   location           String?
   language           String?
   engagementModel    String?  @map("engagement_model")
   budgetType         String?  @map("budget_type")
+  budgetPeriod       String?  @map("budget_period")
   budgetMin          Decimal? @map("budget_min") @db.Decimal(10, 2)
   budgetMax          Decimal? @map("budget_max") @db.Decimal(10, 2)
   currency           String?
@@ -642,6 +644,7 @@ model SourceConnector {
   updatedAt        DateTime  @updatedAt @map("updated_at")
 
   leads JobLead[]
+  discoveryRuns OpportunityDiscoveryRun[]
 
   @@map("source_connectors")
 }
@@ -657,6 +660,7 @@ model SearchCampaign {
   languages        Json      @default("[]")
   sources          Json      @default("[]")
   productRoutes    Json      @default("[]") @map("product_routes")
+  jobTypes         Json      @default("[]") @map("job_types")
   minimumBudget    Decimal?  @map("minimum_budget") @db.Decimal(10, 2)
   minimumMargin    Decimal?  @map("minimum_margin") @db.Decimal(5, 2)
   schedule         String?
@@ -665,6 +669,26 @@ model SearchCampaign {
   updatedAt        DateTime  @updatedAt @map("updated_at")
 
   @@map("search_campaigns")
+}
+
+model OpportunityDiscoveryRun {
+  id          String    @id @default(uuid())
+  connectorId String    @map("connector_id")
+  status      String
+  fetched     Int       @default(0)
+  accepted    Int       @default(0)
+  rejected    Int       @default(0)
+  created     Int       @default(0)
+  updated     Int       @default(0)
+  latencyMs   Int?      @map("latency_ms")
+  error       String?
+  startedAt   DateTime  @default(now()) @map("started_at")
+  completedAt DateTime? @map("completed_at")
+
+  connector SourceConnector @relation(fields: [connectorId], references: [id], onDelete: Cascade)
+
+  @@index([connectorId, startedAt])
+  @@map("opportunity_discovery_runs")
 }
 
 model OpportunityContract {

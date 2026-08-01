@@ -1,6 +1,5 @@
 import Link from "next/link";
 import {
-  ArrowUpRight,
   BriefcaseBusiness,
   Cable,
   FileCheck2,
@@ -8,6 +7,7 @@ import {
   Radar,
   Search,
 } from "lucide-react";
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
   DashboardHeader,
@@ -16,10 +16,7 @@ import {
   StatusPill,
 } from "@/components/dashboard/DashboardPrimitives";
 import { formatCurrency } from "@/lib/utils";
-import {
-  GenerateProposalButton,
-  RunOpportunityScanButton,
-} from "@/components/admin/OpportunityActions";
+import { RunOpportunityScanButton } from "@/components/admin/OpportunityActions";
 import {
   CampaignControl,
   ConnectorControls,
@@ -28,6 +25,9 @@ import {
   bootstrapOpportunityEngine,
   SUPPORTED_CONNECTOR_TYPES,
 } from "@/lib/opportunities/engine";
+import { OPPORTUNITY_CATEGORIES } from "@/lib/opportunities/classification";
+import { OpportunityTableRow } from "@/components/admin/OpportunityTableRow";
+import { RssConnectorForm } from "@/components/admin/RssConnectorForm";
 
 export type OpportunityView =
   | "opportunities"
@@ -56,19 +56,36 @@ function numberValue(value: unknown) {
   return value == null ? null : Number(value);
 }
 
-function toneForRisk(score: number | null) {
-  if (score == null) return "neutral" as const;
-  if (score >= 70) return "red" as const;
-  if (score >= 40) return "gold" as const;
-  return "green" as const;
-}
+export type OpportunityFilters = {
+  q?: string;
+  category?: string;
+  jobType?: string;
+  source?: string;
+  route?: string;
+};
 
 export default async function OpportunityWorkspace({
   view,
+  filters = {},
 }: {
   view: OpportunityView;
+  filters?: OpportunityFilters;
 }) {
   await bootstrapOpportunityEngine();
+  const conditions: Prisma.JobLeadWhereInput[] = [];
+  if (filters.q?.trim()) {
+    conditions.push({
+      OR: [
+        { title: { contains: filters.q.trim(), mode: "insensitive" } },
+        { description: { contains: filters.q.trim(), mode: "insensitive" } },
+      ],
+    });
+  }
+  if (filters.category) conditions.push({ category: filters.category });
+  if (filters.jobType) conditions.push({ engagementModel: filters.jobType });
+  if (filters.source) conditions.push({ source: filters.source });
+  if (filters.route) conditions.push({ productRoute: filters.route });
+  const leadWhere: Prisma.JobLeadWhereInput = conditions.length ? { AND: conditions } : {};
   const [
     leads,
     campaigns,
@@ -76,8 +93,17 @@ export default async function OpportunityWorkspace({
     proposals,
     contracts,
     interviews,
+    totalDiscovered,
+    totalQualified,
+    totalSubmitted,
+    totalWon,
+    filteredTotal,
+    sourceOptions,
+    jobTypeOptions,
+    routeOptions,
   ] = await Promise.all([
     prisma.jobLead.findMany({
+      where: leadWhere,
       orderBy: [{ score: "desc" }, { createdAt: "desc" }],
       take: 100,
       include: {
@@ -105,15 +131,21 @@ export default async function OpportunityWorkspace({
       take: 100,
       include: { contract: true, specifications: true },
     }),
+    prisma.jobLead.count(),
+    prisma.jobLead.count({
+      where: {
+        score: { gte: 70 },
+        routeDecision: { in: ["DIRECT_FULFILMENT", "CUSTOM_QUOTE"] },
+      },
+    }),
+    prisma.jobLead.count({ where: { pipelineStatus: { in: ["submitted", "won", "lost"] } } }),
+    prisma.jobLead.count({ where: { pipelineStatus: "won" } }),
+    prisma.jobLead.count({ where: leadWhere }),
+    prisma.jobLead.findMany({ distinct: ["source"], select: { source: true }, orderBy: { source: "asc" } }),
+    prisma.jobLead.findMany({ distinct: ["engagementModel"], select: { engagementModel: true }, orderBy: { engagementModel: "asc" } }),
+    prisma.jobLead.findMany({ distinct: ["productRoute"], select: { productRoute: true }, orderBy: { productRoute: "asc" } }),
   ]);
 
-  const qualified = leads.filter(
-    (lead) => numberValue(lead.score) != null && Number(lead.score) >= 70,
-  ).length;
-  const submitted = leads.filter((lead) =>
-    ["submitted", "won", "lost"].includes(lead.pipelineStatus),
-  ).length;
-  const won = leads.filter((lead) => lead.pipelineStatus === "won").length;
   const interviewsBlocked = interviews.filter(
     (interview) =>
       interview.status !== "completed" || interview.ambiguityScore > 20,
@@ -149,24 +181,24 @@ export default async function OpportunityWorkspace({
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <MetricCard
           label="Discovered"
-          value={leads.length}
+          value={totalDiscovered}
           icon={Radar}
           tone="blue"
           detail="No synthetic fallback records"
         />
         <MetricCard
           label="Qualified"
-          value={qualified}
+          value={totalQualified}
           icon={Search}
           tone="violet"
           detail="Score 70 or higher"
         />
         <MetricCard
           label="Applications"
-          value={submitted}
+          value={totalSubmitted}
           icon={FileCheck2}
           tone="gold"
-          detail={`${won} won`}
+          detail={`${totalWon} won`}
         />
         <MetricCard
           label="Intake blockers"
@@ -189,16 +221,43 @@ export default async function OpportunityWorkspace({
                 </Link>
               }
             />
+            <form action="/admin/opportunities" method="get" className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-[1.5fr_repeat(4,1fr)_auto]">
+              <input name="q" defaultValue={filters.q} placeholder="Keyword or job title" className="min-h-11 rounded-xl border border-white/10 bg-black/20 px-3 text-sm outline-none focus:border-cyan-300/40" />
+              <select name="category" defaultValue={filters.category || ""} className="min-h-11 rounded-xl border border-white/10 bg-[#111214] px-3 text-sm text-white/70 outline-none focus:border-cyan-300/40">
+                <option value="">All categories</option>
+                {OPPORTUNITY_CATEGORIES.map((category) => <option key={category} value={category}>{category}</option>)}
+              </select>
+              <select name="jobType" defaultValue={filters.jobType || ""} className="min-h-11 rounded-xl border border-white/10 bg-[#111214] px-3 text-sm text-white/70 outline-none focus:border-cyan-300/40">
+                <option value="">All job types</option>
+                {jobTypeOptions.flatMap((item) => item.engagementModel ? [<option key={item.engagementModel} value={item.engagementModel}>{item.engagementModel}</option>] : [])}
+              </select>
+              <select name="source" defaultValue={filters.source || ""} className="min-h-11 rounded-xl border border-white/10 bg-[#111214] px-3 text-sm text-white/70 outline-none focus:border-cyan-300/40">
+                <option value="">All sources</option>
+                {sourceOptions.map((item) => <option key={item.source} value={item.source}>{item.source}</option>)}
+              </select>
+              <select name="route" defaultValue={filters.route || ""} className="min-h-11 rounded-xl border border-white/10 bg-[#111214] px-3 text-sm text-white/70 outline-none focus:border-cyan-300/40">
+                <option value="">All product routes</option>
+                {routeOptions.flatMap((item) => item.productRoute ? [<option key={item.productRoute} value={item.productRoute}>{item.productRoute}</option>] : [])}
+              </select>
+              <div className="flex gap-2">
+                <button className="min-h-11 flex-1 rounded-xl bg-cyan-300/10 px-4 text-xs font-black text-cyan-100">Filter</button>
+                <Link href="/admin/opportunities" className="inline-flex min-h-11 items-center rounded-xl border border-white/10 px-3 text-xs text-white/45">Clear</Link>
+              </div>
+            </form>
+            <p className="mt-3 text-[11px] text-white/30">Showing {leads.length} of {filteredTotal} matching opportunities. Click a title, source, or any non-control area in a row to open the original listing.</p>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1050px] text-left text-sm">
+            <table className="w-full min-w-[1750px] text-left text-sm">
               <thead className="border-b border-white/7 text-[9px] font-black uppercase tracking-[.14em] text-white/25">
                 <tr>
                   <th className="px-5 py-3">Opportunity</th>
-                  <th className="px-3 py-3">Category / route</th>
-                  <th className="px-3 py-3">Budget</th>
+                  <th className="px-3 py-3">Category</th>
+                  <th className="px-3 py-3">Job type</th>
+                  <th className="px-3 py-3">Keywords</th>
+                  <th className="px-3 py-3">Product route</th>
+                  <th className="px-3 py-3">Compensation</th>
                   <th className="px-3 py-3">Capability</th>
-                  <th className="px-3 py-3">Profit</th>
+                  <th className="px-3 py-3">Commercial</th>
                   <th className="px-3 py-3">Risk</th>
                   <th className="px-3 py-3">Pipeline</th>
                   <th className="px-3 py-3">Proposal</th>
@@ -207,60 +266,28 @@ export default async function OpportunityWorkspace({
               </thead>
               <tbody className="divide-y divide-white/5">
                 {leads.map((lead) => (
-                  <tr key={lead.id} className="hover:bg-white/[.02]">
-                    <td className="max-w-md px-5 py-4">
-                      <div className="font-semibold text-white/80">{lead.title}</div>
-                      <div className="mt-1 line-clamp-1 text-xs text-white/30">
-                        {lead.description || "No source description retained"}
-                      </div>
-                    </td>
-                    <td className="px-3 py-4">
-                      <div className="text-white/65">{lead.category || "Unclassified"}</div>
-                      <div className="mt-1 text-xs text-cyan-200/55">
-                        {lead.productRoute || "Routing required"}
-                      </div>
-                    </td>
-                    <td className="px-3 py-4 text-white/60">
-                      {lead.budgetMin || lead.budgetMax
-                        ? `${lead.currency || "USD"} ${lead.budgetMin || "?"}–${lead.budgetMax || "?"}`
-                        : "Not stated"}
-                    </td>
-                    <ScoreCell value={numberValue(lead.capabilityScore) ?? numberValue(lead.score)} />
-                    <ScoreCell value={numberValue(lead.profitabilityScore)} />
-                    <td className="px-3 py-4">
-                      <StatusPill tone={toneForRisk(numberValue(lead.riskScore))}>
-                        {numberValue(lead.riskScore)?.toFixed(0) || "—"}
-                      </StatusPill>
-                    </td>
-                    <td className="px-3 py-4">
-                      <StatusPill tone={lead.pipelineStatus === "won" ? "green" : "neutral"}>
-                        {lead.pipelineStatus.replaceAll("_", " ")}
-                      </StatusPill>
-                    </td>
-                    <td className="px-3 py-4">
-                      <GenerateProposalButton
-                        leadId={lead.id}
-                        hasProposal={lead.proposals.length > 0}
-                      />
-                    </td>
-                    <td className="px-5 py-4">
-                      {lead.sourceUrl ? (
-                        <a
-                          href={lead.sourceUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 text-blue-300"
-                        >
-                          {lead.connector?.name || lead.source}
-                          <ArrowUpRight className="h-3 w-3" />
-                        </a>
-                      ) : (
-                        <span className="text-white/40">
-                          {lead.connector?.name || lead.source}
-                        </span>
-                      )}
-                    </td>
-                  </tr>
+                  <OpportunityTableRow key={lead.id} lead={{
+                    id: lead.id,
+                    title: lead.title,
+                    description: lead.description,
+                    sourceUrl: lead.sourceUrl,
+                    sourceName: lead.connector?.name || lead.source,
+                    category: lead.category,
+                    productRoute: lead.productRoute,
+                    routeDecision: lead.routeDecision,
+                    engagementModel: lead.engagementModel,
+                    keywords: Array.isArray(lead.keywords) ? lead.keywords.map(String) : [],
+                    budgetMin: lead.budgetMin?.toString() || null,
+                    budgetMax: lead.budgetMax?.toString() || null,
+                    budgetType: lead.budgetType,
+                    budgetPeriod: lead.budgetPeriod,
+                    currency: lead.currency,
+                    capabilityScore: numberValue(lead.capabilityScore),
+                    commercialScore: numberValue(lead.profitabilityScore),
+                    riskScore: numberValue(lead.riskScore),
+                    pipelineStatus: lead.pipelineStatus,
+                    hasProposal: lead.proposals.length > 0,
+                  }} />
                 ))}
               </tbody>
             </table>
@@ -287,8 +314,7 @@ export default async function OpportunityWorkspace({
                 </StatusPill>
               </div>
               <p className="mt-4 text-xs leading-5 text-white/40">
-                Minimum budget: {campaign.minimumBudget ? `$${campaign.minimumBudget}` : "not set"} ·
-                Minimum margin: {campaign.minimumMargin ? `${campaign.minimumMargin}%` : "not set"}
+                Minimum budget: {campaign.minimumBudget ? `$${campaign.minimumBudget}` : "not set"}. Profitability is calculated only after delivery cost and fees are known.
               </p>
               <CampaignControl campaignId={campaign.id} enabled={campaign.enabled} />
             </article>
@@ -297,6 +323,8 @@ export default async function OpportunityWorkspace({
       )}
 
       {view === "connectors" && (
+        <>
+        <RssConnectorForm />
         <RecordGrid
           title="Sources and connectors"
           description="Every source declares its permission method, allowed actions, health, authentication, retention, and kill switch."
@@ -330,6 +358,7 @@ export default async function OpportunityWorkspace({
             </article>
           ))}
         </RecordGrid>
+        </>
       )}
 
       {view === "proposals" && (
@@ -444,16 +473,6 @@ export default async function OpportunityWorkspace({
         </RecordGrid>
       )}
     </div>
-  );
-}
-
-function ScoreCell({ value }: { value: number | null }) {
-  return (
-    <td className="px-3 py-4">
-      <span className={value == null ? "text-white/25" : value >= 70 ? "font-black text-emerald-300" : value >= 40 ? "font-black text-amber-300" : "font-black text-rose-300"}>
-        {value?.toFixed(0) || "—"}
-      </span>
-    </td>
   );
 }
 

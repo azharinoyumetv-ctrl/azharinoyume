@@ -1,40 +1,21 @@
 import { Prisma } from "@/generated/prisma/client";
+import { createHash } from "node:crypto";
+import { lookup } from "node:dns/promises";
+import { isIP } from "node:net";
+import { XMLParser } from "fast-xml-parser";
+import { ImapFlow } from "imapflow";
+import { simpleParser } from "mailparser";
 import { callClaude } from "@/lib/ai/claude";
 import { prisma } from "@/lib/prisma";
+import {
+  campaignAllows,
+  type CanonicalOpportunity,
+  normalizeJobType,
+  scoreOpportunity,
+} from "@/lib/opportunities/classification";
 
-export type CanonicalOpportunity = {
-  externalId: string;
-  title: string;
-  description: string;
-  sourceUrl: string;
-  source: string;
-  category?: string;
-  location?: string;
-  engagementModel?: string;
-  budgetMin?: number;
-  budgetMax?: number;
-  currency?: string;
-  publishedAt?: string;
-  attribution: string;
-};
-
-type OpportunityScores = {
-  score: number;
-  legitimacyScore: number;
-  capabilityScore: number;
-  profitabilityScore: number;
-  riskScore: number;
-  productRoute: string;
-  routeDecision:
-    | "DIRECT_FULFILMENT"
-    | "CUSTOM_QUOTE"
-    | "PRODUCT_RESEARCH";
-  serviceFamily: string;
-  category: string;
-  requiredSkills: string[];
-  riskFlags: string[];
-  breakdown: Record<string, number | string>;
-};
+export type { CanonicalOpportunity } from "@/lib/opportunities/classification";
+export { campaignAllows, scoreOpportunity } from "@/lib/opportunities/classification";
 
 type RemotiveJob = {
   id?: number | string;
@@ -93,6 +74,8 @@ export const SUPPORTED_CONNECTOR_TYPES = [
   "remotive_api",
   "remoteok_api",
   "himalayas_api",
+  "rss_feed",
+  "email_alerts_imap",
 ] as const;
 
 export type SupportedConnectorType = (typeof SUPPORTED_CONNECTOR_TYPES)[number];
@@ -103,71 +86,6 @@ export function connectorTypeIsSupported(value: string): value is SupportedConne
 
 const DISCOVERY_INTERVAL_MS = 4 * 60 * 60_000;
 let discoveryRunning = false;
-
-const CAPABILITY_ROUTES = [
-  {
-    route: "Azyume Studio",
-    serviceFamily: "Video Production",
-    category: "Video Editing",
-    keywords: [
-      "video edit",
-      "video editor",
-      "youtube",
-      "shorts",
-      "reels",
-      "tiktok",
-      "motion graphic",
-      "podcast edit",
-      "subtitle",
-      "caption",
-    ],
-  },
-  {
-    route: "Website Master Platform",
-    serviceFamily: "Software Development",
-    category: "Website Development",
-    keywords: [
-      "web developer",
-      "website",
-      "next.js",
-      "nextjs",
-      "react",
-      "ecommerce",
-      "e-commerce",
-      "landing page",
-      "wordpress",
-    ],
-  },
-  {
-    route: "DagangOS Custom Automation",
-    serviceFamily: "Automation",
-    category: "Workflow Automation",
-    keywords: [
-      "automation",
-      "n8n",
-      "workflow",
-      "api integration",
-      "zapier",
-      "make.com",
-      "ai agent",
-    ],
-  },
-  {
-    route: "DagangOS Business Systems",
-    serviceFamily: "Business Software",
-    category: "Custom Business System",
-    keywords: [
-      "point of sale",
-      "pos system",
-      "inventory",
-      "restaurant system",
-      "rental system",
-      "construction software",
-      "erp",
-      "crm",
-    ],
-  },
-] as const;
 
 function stripHtml(value: string) {
   const decodedHtml = value
@@ -198,110 +116,28 @@ function stripHtml(value: string) {
 
 function parseSalary(value?: string) {
   if (!value) return {};
-  const numbers = [...value.matchAll(/(?:USD|\$)?\s*([\d,.]+)/gi)]
-    .map((match) => Number(match[1].replaceAll(",", "")))
+  const numbers = [...value.matchAll(/(?:USD|EUR|GBP|\$|€|£)?\s*([\d,.]+)\s*([km])?/gi)]
+    .map((match) => {
+      const base = Number(match[1].replaceAll(",", ""));
+      const multiplier = match[2]?.toLowerCase() === "m" ? 1_000_000 : match[2]?.toLowerCase() === "k" ? 1_000 : 1;
+      return base * multiplier;
+    })
     .filter(Number.isFinite);
   if (!numbers.length) return {};
+  const budgetPeriod = /per\s*hour|\/\s*h(?:ou)?r|hourly/i.test(value)
+    ? "hour"
+    : /per\s*month|\/\s*mo(?:nth)?|monthly/i.test(value)
+      ? "month"
+      : /per\s*year|\/\s*y(?:ea)?r|annual|yearly/i.test(value)
+        ? "year"
+        : "unknown";
   return {
     budgetMin: Math.min(...numbers),
     budgetMax: Math.max(...numbers),
     currency: /€|EUR/i.test(value) ? "EUR" : /£|GBP/i.test(value) ? "GBP" : "USD",
+    budgetType: "salary" as const,
+    budgetPeriod: budgetPeriod as "hour" | "month" | "year" | "unknown",
   };
-}
-
-function routeOpportunity(opportunity: CanonicalOpportunity) {
-  const text = `${opportunity.title} ${opportunity.description} ${opportunity.category || ""}`.toLowerCase();
-  let best:
-    | (typeof CAPABILITY_ROUTES)[number]
-    | undefined;
-  let bestMatches = 0;
-  for (const route of CAPABILITY_ROUTES) {
-    const matches = route.keywords.filter((keyword) => text.includes(keyword)).length;
-    if (matches > bestMatches) {
-      best = route;
-      bestMatches = matches;
-    }
-  }
-  return { route: best, matches: bestMatches };
-}
-
-function scoreOpportunity(opportunity: CanonicalOpportunity): OpportunityScores {
-  const routed = routeOpportunity(opportunity);
-  const legitimacyScore = opportunity.sourceUrl.startsWith("https://") ? 88 : 55;
-  const capabilityScore = routed.route
-    ? Math.min(95, 68 + routed.matches * 9)
-    : 30;
-  const statedBudget = opportunity.budgetMax || opportunity.budgetMin || 0;
-  const profitabilityScore = statedBudget
-    ? Math.min(95, statedBudget >= 1_000 ? 90 : statedBudget >= 300 ? 75 : 55)
-    : routed.route
-      ? 58
-      : 35;
-  const riskFlags: string[] = [];
-  if (!statedBudget) riskFlags.push("Budget not stated");
-  if (opportunity.description.length < 120)
-    riskFlags.push("Brief contains limited detail");
-  const riskScore = Math.min(100, 15 + riskFlags.length * 12);
-  const score = Math.round(
-    legitimacyScore * 0.25 +
-      capabilityScore * 0.4 +
-      profitabilityScore * 0.25 +
-      (100 - riskScore) * 0.1,
-  );
-  return {
-    score,
-    legitimacyScore,
-    capabilityScore,
-    profitabilityScore,
-    riskScore,
-    productRoute: routed.route?.route || "Opportunity Gap Radar",
-    routeDecision: routed.route
-      ? capabilityScore >= 75
-        ? "DIRECT_FULFILMENT"
-        : "CUSTOM_QUOTE"
-      : "PRODUCT_RESEARCH",
-    serviceFamily: routed.route?.serviceFamily || "Unclassified",
-    category: routed.route?.category || opportunity.category || "Unclassified",
-    requiredSkills: routed.route
-      ? routed.route.keywords.filter((keyword) =>
-          `${opportunity.title} ${opportunity.description}`.toLowerCase().includes(keyword),
-        )
-      : [],
-    riskFlags,
-    breakdown: {
-      sourceLegitimacy: legitimacyScore,
-      capabilityFit: capabilityScore,
-      profitability: profitabilityScore,
-      commercialRisk: riskScore,
-      keywordMatches: routed.matches,
-    },
-  };
-}
-
-function campaignAllows(
-  opportunity: CanonicalOpportunity,
-  campaigns: Array<{
-    keywords: unknown;
-    excludedKeywords: unknown;
-    minimumBudget: unknown;
-  }>,
-) {
-  if (!campaigns.length) return true;
-  const text = `${opportunity.title} ${opportunity.description}`.toLowerCase();
-  return campaigns.some((campaign) => {
-    const keywords = Array.isArray(campaign.keywords)
-      ? campaign.keywords.map(String).map((value) => value.toLowerCase())
-      : [];
-    const excluded = Array.isArray(campaign.excludedKeywords)
-      ? campaign.excludedKeywords.map(String).map((value) => value.toLowerCase())
-      : [];
-    if (excluded.some((keyword) => text.includes(keyword))) return false;
-    if (keywords.length && !keywords.some((keyword) => text.includes(keyword)))
-      return false;
-    const minimumBudget = Number(campaign.minimumBudget || 0);
-    const statedBudget = opportunity.budgetMax || opportunity.budgetMin || 0;
-    return !minimumBudget || !statedBudget || statedBudget >= minimumBudget;
-  });
 }
 
 async function fetchRemotive(endpoint: string) {
@@ -379,6 +215,8 @@ export function normalizeRemoteOkJobs(jobs: RemoteOkJob[]) {
         budgetMin: job.salary_min || undefined,
         budgetMax: job.salary_max || undefined,
         currency: job.salary_min || job.salary_max ? "USD" : undefined,
+        budgetType: job.salary_min || job.salary_max ? "salary" : "unknown",
+        budgetPeriod: job.salary_min || job.salary_max ? "year" : "unknown",
         publishedAt:
           job.date || (job.epoch ? new Date(job.epoch * 1_000).toISOString() : undefined),
         attribution: "Remote OK",
@@ -429,6 +267,14 @@ export function normalizeHimalayasJobs(jobs: HimalayasJob[]) {
         budgetMin: job.minSalary || undefined,
         budgetMax: job.maxSalary || undefined,
         currency: job.currency || undefined,
+        budgetType: job.minSalary || job.maxSalary ? "salary" : "unknown",
+        budgetPeriod: /hour/i.test(job.salaryPeriod || "")
+          ? "hour"
+          : /month/i.test(job.salaryPeriod || "")
+            ? "month"
+            : /year|annual/i.test(job.salaryPeriod || "")
+              ? "year"
+              : "unknown",
         publishedAt: job.pubDate
           ? new Date(job.pubDate > 1_000_000_000_000 ? job.pubDate : job.pubDate * 1_000).toISOString()
           : undefined,
@@ -436,6 +282,218 @@ export function normalizeHimalayasJobs(jobs: HimalayasJob[]) {
       } satisfies CanonicalOpportunity,
     ];
   });
+}
+
+function isPrivateAddress(address: string) {
+  if (isIP(address) === 4) {
+    const parts = address.split(".").map(Number);
+    return (
+      parts[0] === 10 ||
+      parts[0] === 127 ||
+      (parts[0] === 169 && parts[1] === 254) ||
+      (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) ||
+      (parts[0] === 192 && parts[1] === 168) ||
+      parts[0] === 0
+    );
+  }
+  const normalized = address.toLowerCase();
+  return normalized === "::1" || normalized === "::" || normalized.startsWith("fc") || normalized.startsWith("fd") || normalized.startsWith("fe80:");
+}
+
+async function assertPublicHttpsUrl(value: string) {
+  const url = new URL(value);
+  if (url.protocol !== "https:") throw new Error("RSS feeds must use HTTPS");
+  if (url.username || url.password) throw new Error("RSS feed URLs cannot contain credentials");
+  const addresses = await lookup(url.hostname, { all: true, verbatim: true });
+  if (!addresses.length || addresses.some(({ address }) => isPrivateAddress(address))) {
+    throw new Error("RSS feed host resolves to a private or reserved address");
+  }
+  return url;
+}
+
+async function fetchPublicFeed(endpoint: string) {
+  let url = await assertPublicHttpsUrl(endpoint);
+  for (let redirect = 0; redirect <= 3; redirect += 1) {
+    const response = await fetch(url, {
+      redirect: "manual",
+      headers: {
+        Accept: "application/rss+xml, application/atom+xml, application/xml, text/xml",
+        "User-Agent": "DagangOS-Opportunity-Engine/1.0 (+https://bot.azharinoyume.cloud)",
+      },
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get("location");
+      if (!location || redirect === 3) throw new Error("RSS feed redirect could not be followed safely");
+      url = await assertPublicHttpsUrl(new URL(location, url).toString());
+      continue;
+    }
+    if (!response.ok) throw new Error(`RSS feed returned ${response.status}`);
+    const contentLength = Number(response.headers.get("content-length") || 0);
+    if (contentLength > 2_000_000) throw new Error("RSS feed exceeds the 2 MB safety limit");
+    const body = await response.text();
+    if (Buffer.byteLength(body, "utf8") > 2_000_000) throw new Error("RSS feed exceeds the 2 MB safety limit");
+    return { body, finalUrl: url };
+  }
+  throw new Error("RSS feed could not be retrieved");
+}
+
+function arrayValue<T>(value: T | T[] | undefined): T[] {
+  if (value == null) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
+function xmlText(value: unknown): string {
+  if (typeof value === "string" || typeof value === "number") return String(value);
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    return xmlText(record["#text"] || record.__cdata || record.href || "");
+  }
+  return "";
+}
+
+function atomLink(value: unknown) {
+  for (const link of arrayValue(value)) {
+    if (typeof link === "string") return link;
+    if (link && typeof link === "object") {
+      const record = link as Record<string, unknown>;
+      if (!record.rel || record.rel === "alternate") return xmlText(record.href || record["@_href"]);
+    }
+  }
+  return "";
+}
+
+export function normalizeRssFeed(
+  xml: string,
+  options: { source: string; attribution: string; maximumJobs?: number },
+) {
+  const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@_", processEntities: true });
+  const parsed = parser.parse(xml) as Record<string, unknown>;
+  const rss = (parsed.rss || {}) as Record<string, unknown>;
+  const channel = (rss.channel || {}) as Record<string, unknown>;
+  const feed = (parsed.feed || {}) as Record<string, unknown>;
+  const items = channel.item ? arrayValue(channel.item) : arrayValue(feed.entry);
+  const maximumJobs = Math.min(200, Math.max(1, options.maximumJobs || 100));
+
+  return items.slice(0, maximumJobs).flatMap((raw) => {
+    if (!raw || typeof raw !== "object") return [];
+    const item = raw as Record<string, unknown>;
+    const sourceUrl = xmlText(item.link) || atomLink(item.link);
+    const title = stripHtml(xmlText(item.title)).slice(0, 500);
+    if (!sourceUrl.startsWith("https://") || !title) return [];
+    const description = stripHtml(
+      xmlText(item.description || item.summary || item.content || item["content:encoded"]),
+    );
+    const categories = arrayValue(item.category).map(xmlText).filter(Boolean).join(", ");
+    const externalId = xmlText(item.guid || item.id) || createHash("sha256").update(sourceUrl).digest("hex");
+    return [{
+      externalId,
+      title,
+      description,
+      sourceUrl,
+      source: options.source,
+      category: categories || undefined,
+      location: xmlText(item.location || item["job:location"]) || undefined,
+      engagementModel: xmlText(item.jobType || item["job:type"]) || undefined,
+      publishedAt: xmlText(item.pubDate || item.published || item.updated) || undefined,
+      attribution: options.attribution,
+    } satisfies CanonicalOpportunity];
+  });
+}
+
+async function fetchRss(configuration: Record<string, unknown>) {
+  const endpoint = String(configuration.endpoint || "");
+  if (!endpoint) throw new Error("RSS feed URL is not configured");
+  const { body, finalUrl } = await fetchPublicFeed(endpoint);
+  const source = String(configuration.sourceKey || `rss_${finalUrl.hostname.replace(/[^a-z0-9]+/gi, "_")}`).toLowerCase();
+  return normalizeRssFeed(body, {
+    source,
+    attribution: String(configuration.attribution || finalUrl.hostname),
+    maximumJobs: Number(configuration.maximumJobsPerRun || 100),
+  });
+}
+
+export function normalizeEmailAlert(input: {
+  messageId?: string;
+  subject?: string;
+  text?: string;
+  html?: string;
+  from?: string;
+  date?: Date;
+}) {
+  const combined = `${input.text || ""} ${input.html || ""}`;
+  const urls = [...combined.matchAll(/https:\/\/[^\s<>"']+/gi)]
+    .map((match) => match[0].replace(/[).,;]+$/, ""))
+    .filter((url) => !/unsubscribe|email-preferences|tracking/i.test(url));
+  const sourceUrl = urls[0];
+  const title = stripHtml(input.subject || "").replace(/^(new job|job alert|recommended job)s?\s*[:\-]\s*/i, "");
+  if (!sourceUrl || !title) return null;
+  return {
+    externalId: input.messageId || createHash("sha256").update(`${title}:${sourceUrl}`).digest("hex"),
+    title: title.slice(0, 500),
+    description: stripHtml(input.text || input.html || ""),
+    sourceUrl,
+    source: "email_alert",
+    publishedAt: input.date?.toISOString(),
+    attribution: input.from || "Email alert",
+  } satisfies CanonicalOpportunity;
+}
+
+function emailFetcherConfigured() {
+  return Boolean(
+    process.env.OPPORTUNITY_IMAP_HOST &&
+      process.env.OPPORTUNITY_IMAP_USER &&
+      process.env.OPPORTUNITY_IMAP_PASSWORD,
+  );
+}
+
+async function fetchEmailAlerts(configuration: Record<string, unknown>) {
+  if (!emailFetcherConfigured()) throw new Error("Email alert mailbox credentials are not configured on the server");
+  const allowedDomains = Array.isArray(configuration.allowedSenderDomains)
+    ? configuration.allowedSenderDomains.map(String).map((value) => value.toLowerCase())
+    : [];
+  const lookbackDays = Math.min(30, Math.max(1, Number(configuration.lookbackDays || 7)));
+  const client = new ImapFlow({
+    host: process.env.OPPORTUNITY_IMAP_HOST!,
+    port: Number(process.env.OPPORTUNITY_IMAP_PORT || 993),
+    secure: process.env.OPPORTUNITY_IMAP_SECURE !== "false",
+    auth: {
+      user: process.env.OPPORTUNITY_IMAP_USER!,
+      pass: process.env.OPPORTUNITY_IMAP_PASSWORD!,
+    },
+    logger: false,
+  });
+  const results: CanonicalOpportunity[] = [];
+  await client.connect();
+  try {
+    const lock = await client.getMailboxLock(String(configuration.mailbox || "INBOX"));
+    try {
+      const since = new Date(Date.now() - lookbackDays * 86_400_000);
+      const uids = await client.search({ since }, { uid: true });
+      if (!Array.isArray(uids) || !uids.length) return results;
+      for await (const message of client.fetch(uids.slice(-200), { source: true }, { uid: true })) {
+        if (!message.source) continue;
+        const parsed = await simpleParser(message.source);
+        const from = parsed.from?.value[0]?.address || "";
+        const senderDomain = from.split("@")[1]?.toLowerCase() || "";
+        if (allowedDomains.length && !allowedDomains.includes(senderDomain)) continue;
+        const normalized = normalizeEmailAlert({
+          messageId: parsed.messageId,
+          subject: parsed.subject,
+          text: parsed.text,
+          html: typeof parsed.html === "string" ? parsed.html : undefined,
+          from,
+          date: parsed.date,
+        });
+        if (normalized) results.push(normalized);
+      }
+    } finally {
+      lock.release();
+    }
+  } finally {
+    await client.logout().catch(() => undefined);
+  }
+  return results;
 }
 
 function configurationObject(value: unknown): Record<string, unknown> {
@@ -460,6 +518,10 @@ async function fetchConnectorOpportunities(
       return fetchHimalayas(
         String(config.endpoint || "https://himalayas.app/jobs/api?limit=20&offset=0"),
       );
+    case "rss_feed":
+      return fetchRss(config);
+    case "email_alerts_imap":
+      return fetchEmailAlerts(config);
     default:
       throw new Error(`Connector adapter is not implemented: ${connectorType}`);
   }
@@ -482,10 +544,12 @@ async function saveOpportunity(
     subcategory: opportunity.category,
     deliverables: [] as string[],
     requiredSkills: scores.requiredSkills,
+    keywords: scores.keywords,
     location: opportunity.location,
-    language: "en",
-    engagementModel: opportunity.engagementModel,
-    budgetType: opportunity.budgetMin || opportunity.budgetMax ? "stated" : "unknown",
+    language: opportunity.language || "en",
+    engagementModel: normalizeJobType(opportunity.engagementModel),
+    budgetType: opportunity.budgetType || (opportunity.budgetMin || opportunity.budgetMax ? "project" : "unknown"),
+    budgetPeriod: opportunity.budgetPeriod || "unknown",
     budgetMin: opportunity.budgetMin,
     budgetMax: opportunity.budgetMax,
     currency: opportunity.currency,
@@ -601,6 +665,32 @@ export async function bootstrapOpportunityEngine() {
       });
     }
 
+    await transaction.sourceConnector.upsert({
+      where: { name: "Opportunity Email Alerts" },
+      create: {
+        name: "Opportunity Email Alerts",
+        connectorType: "email_alerts_imap",
+        collectionMethod: "owner_mailbox_imap",
+        permissionMethod: "owner_authorized_mailbox",
+        policyStatus: "approved",
+        health: "disabled",
+        authStatus: emailFetcherConfigured() ? "configured" : "not_configured",
+        enabled: false,
+        allowedActions: ["collect", "score", "draft_proposal", "link_to_source"],
+        retentionDays: 90,
+        rateLimit: { minimumIntervalMinutes: 15, maximumMessagesPerRun: 200 },
+        configuration: { mailbox: "INBOX", lookbackDays: 7, allowedSenderDomains: [] },
+      },
+      update: {
+        connectorType: "email_alerts_imap",
+        collectionMethod: "owner_mailbox_imap",
+        permissionMethod: "owner_authorized_mailbox",
+        policyStatus: "approved",
+        authStatus: emailFetcherConfigured() ? "configured" : "not_configured",
+        allowedActions: ["collect", "score", "draft_proposal", "link_to_source"],
+      },
+    });
+
     const unavailableNames = ["Upwork", "Indeed", "Fiverr"];
     await transaction.sourceConnector.updateMany({
       where: { name: { in: unavailableNames } },
@@ -615,45 +705,40 @@ export async function bootstrapOpportunityEngine() {
       where: { name: { in: unavailableNames }, leads: { none: {} } },
     });
 
-    const campaignCount = await transaction.searchCampaign.count();
-    if (!campaignCount) {
-      await transaction.searchCampaign.create({
-        data: {
-          name: "DagangOS supported opportunities",
-          enabled: true,
-          categories: [
-            "video editing",
-            "website development",
-            "automation",
-            "business software",
-          ],
-          keywords: [
-            "video",
-            "youtube",
-            "website",
-            "web developer",
-            "automation",
-            "n8n",
-            "software",
-            "api",
-            "ecommerce",
-            "content",
-          ],
-          excludedKeywords: [
-            "unpaid",
-            "volunteer only",
-            "commission only",
-            "adult content",
-          ],
-          locations: ["worldwide", "remote"],
-          languages: ["en"],
-          sources: ["remotive", "remoteok", "himalayas"],
-          productRoutes: CAPABILITY_ROUTES.map((route) => route.route),
-          minimumMargin: 20,
-          schedule: "every 4 hours",
-        },
-      });
-    }
+    await transaction.searchCampaign.deleteMany({
+      where: {
+        name: "DagangOS supported opportunities",
+        id: { not: "default-opportunity-discovery" },
+      },
+    });
+    await transaction.searchCampaign.upsert({
+      where: { id: "default-opportunity-discovery" },
+      create: {
+        id: "default-opportunity-discovery",
+        name: "DagangOS supported opportunities",
+        enabled: true,
+        categories: [],
+        keywords: [],
+        excludedKeywords: ["unpaid", "volunteer only", "commission only", "adult content"],
+        locations: [],
+        languages: [],
+        sources: [],
+        productRoutes: [],
+        jobTypes: [],
+        minimumMargin: null,
+        schedule: "every 4 hours",
+      },
+      update: {
+        categories: [],
+        keywords: [],
+        locations: [],
+        languages: [],
+        sources: [],
+        productRoutes: [],
+        jobTypes: [],
+        minimumMargin: null,
+      },
+    });
   });
 }
 
@@ -685,6 +770,15 @@ export async function runOpportunityDiscovery(options?: { force?: boolean }) {
         where: { id: connector.id },
         data: { lastRunAt: new Date(), health: "running" },
       });
+      const startedAt = Date.now();
+      const discoveryRun = await prisma.opportunityDiscoveryRun.create({
+        data: { connectorId: connector.id, status: "running" },
+      });
+      let connectorFetched = 0;
+      let connectorAccepted = 0;
+      let connectorRejected = 0;
+      let connectorCreated = 0;
+      let connectorUpdated = 0;
       try {
         if (!connectorTypeIsSupported(connector.connectorType))
           throw new Error(`Enabled connector has no production adapter: ${connector.connectorType}`);
@@ -692,32 +786,67 @@ export async function runOpportunityDiscovery(options?: { force?: boolean }) {
           connector.connectorType,
           connector.configuration,
         );
+        connectorFetched = opportunities.length;
         fetched += opportunities.length;
         for (const opportunity of opportunities) {
           if (!campaignAllows(opportunity, campaigns)) {
             rejected += 1;
+            connectorRejected += 1;
             continue;
           }
+          connectorAccepted += 1;
           const result = await saveOpportunity(connector.id, opportunity);
-          if (result === "created") created += 1;
-          else updated += 1;
+          if (result === "created") {
+            created += 1;
+            connectorCreated += 1;
+          } else {
+            updated += 1;
+            connectorUpdated += 1;
+          }
         }
-        await prisma.sourceConnector.update({
-          where: { id: connector.id },
-          data: {
-            health: "healthy",
-            lastSuccessAt: new Date(),
-            errorRate: 0,
-          },
-        });
+        await prisma.$transaction([
+          prisma.sourceConnector.update({
+            where: { id: connector.id },
+            data: { health: "healthy", lastSuccessAt: new Date(), errorRate: 0 },
+          }),
+          prisma.opportunityDiscoveryRun.update({
+            where: { id: discoveryRun.id },
+            data: {
+              status: "completed",
+              fetched: connectorFetched,
+              accepted: connectorAccepted,
+              rejected: connectorRejected,
+              created: connectorCreated,
+              updated: connectorUpdated,
+              latencyMs: Date.now() - startedAt,
+              completedAt: new Date(),
+            },
+          }),
+        ]);
       } catch (error) {
         const message =
           error instanceof Error ? error.message.slice(0, 1_000) : "Connector failed";
         errors.push({ connector: connector.name, error: message });
-        await prisma.sourceConnector.update({
-          where: { id: connector.id },
-          data: { health: "failed", errorRate: 100 },
-        });
+        await prisma.$transaction([
+          prisma.sourceConnector.update({
+            where: { id: connector.id },
+            data: { health: "failed", errorRate: 100 },
+          }),
+          prisma.opportunityDiscoveryRun.update({
+            where: { id: discoveryRun.id },
+            data: {
+              status: "failed",
+              fetched: connectorFetched,
+              accepted: connectorAccepted,
+              rejected: connectorRejected,
+              created: connectorCreated,
+              updated: connectorUpdated,
+              latencyMs: Date.now() - startedAt,
+              error: message,
+              completedAt: new Date(),
+            },
+          }),
+        ]);
       }
     }
 
@@ -771,12 +900,64 @@ export async function runScheduledOpportunityDiscovery() {
   return runOpportunityDiscovery({ force: false });
 }
 
+export async function reclassifyStoredOpportunities() {
+  const leads = await prisma.jobLead.findMany();
+  let updated = 0;
+  for (const lead of leads) {
+    const raw = configurationObject(lead.rawSnapshot);
+    const opportunity: CanonicalOpportunity = {
+      externalId: lead.externalId || lead.id,
+      title: lead.title,
+      description: lead.description || "",
+      sourceUrl: lead.sourceUrl || "",
+      source: lead.source,
+      category: typeof raw.category === "string" ? raw.category : lead.subcategory || undefined,
+      location: lead.location || undefined,
+      language: lead.language || "en",
+      engagementModel: lead.engagementModel || undefined,
+      budgetType: (lead.budgetType as CanonicalOpportunity["budgetType"]) || "unknown",
+      budgetPeriod: (lead.budgetPeriod as CanonicalOpportunity["budgetPeriod"]) || "unknown",
+      budgetMin: lead.budgetMin == null ? undefined : Number(lead.budgetMin),
+      budgetMax: lead.budgetMax == null ? undefined : Number(lead.budgetMax),
+      currency: lead.currency || undefined,
+      attribution: typeof raw.attribution === "string" ? raw.attribution : lead.source,
+    };
+    const scores = scoreOpportunity(opportunity);
+    await prisma.jobLead.update({
+      where: { id: lead.id },
+      data: {
+        serviceFamily: scores.serviceFamily,
+        category: scores.category,
+        requiredSkills: scores.requiredSkills,
+        keywords: scores.keywords,
+        engagementModel: normalizeJobType(opportunity.engagementModel),
+        score: scores.score,
+        legitimacyScore: scores.legitimacyScore,
+        capabilityScore: scores.capabilityScore,
+        profitabilityScore: scores.profitabilityScore,
+        riskScore: scores.riskScore,
+        productRoute: scores.productRoute,
+        routeDecision: scores.routeDecision,
+        riskFlags: scores.riskFlags,
+        scoreBreakdown: scores.breakdown as Prisma.InputJsonValue,
+        pipelineStatus: lead.pipelineStatus === "new_lead" || lead.pipelineStatus === "scored"
+          ? scores.score >= 65 ? "scored" : "new_lead"
+          : lead.pipelineStatus,
+      },
+    });
+    updated += 1;
+  }
+  return { updated };
+}
+
 export async function generateOpportunityProposal(
   leadId: string,
   adminId: string,
 ) {
   const lead = await prisma.jobLead.findUnique({ where: { id: leadId } });
   if (!lead) throw new Error("Opportunity not found");
+  if (!['DIRECT_FULFILMENT', 'CUSTOM_QUOTE'].includes(lead.routeDecision || ""))
+    throw new Error("A verified DagangOS product route is required before drafting a proposal");
   if ((Number(lead.capabilityScore) || 0) < 60)
     throw new Error("Opportunity does not meet the capability threshold");
   if (lead.policyStatus !== "approved_source" && lead.source !== "manual")

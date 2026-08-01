@@ -57,9 +57,11 @@ export function RunOpportunityScanButton() {
 export function GenerateProposalButton({
   leadId,
   hasProposal,
+  canDraft = true,
 }: {
   leadId: string;
   hasProposal: boolean;
+  canDraft?: boolean;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -85,6 +87,10 @@ export function GenerateProposalButton({
 
   if (hasProposal) {
     return <span className="text-[11px] font-semibold text-emerald-300">Draft ready</span>;
+  }
+
+  if (!canDraft) {
+    return <span className="text-[10px] font-semibold text-white/30">Route review needed</span>;
   }
 
   return (

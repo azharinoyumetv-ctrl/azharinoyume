@@ -4,6 +4,8 @@ import {
   normalizeHimalayasJobs,
   normalizeRemoteOkJobs,
   normalizeRemotiveJobs,
+  normalizeRssFeed,
+  normalizeEmailAlert,
 } from "./engine";
 
 describe("opportunity connector normalization", () => {
@@ -11,7 +13,54 @@ describe("opportunity connector normalization", () => {
     expect(connectorTypeIsSupported("remotive_api")).toBe(true);
     expect(connectorTypeIsSupported("remoteok_api")).toBe(true);
     expect(connectorTypeIsSupported("himalayas_api")).toBe(true);
+    expect(connectorTypeIsSupported("rss_feed")).toBe(true);
+    expect(connectorTypeIsSupported("email_alerts_imap")).toBe(true);
     expect(connectorTypeIsSupported("official_api")).toBe(false);
+  });
+
+  it("preserves salary scale and period instead of treating it as a project budget", () => {
+    const [job] = normalizeRemotiveJobs([{
+      id: 12,
+      url: "https://remotive.com/remote-jobs/software/senior-engineer-12",
+      title: "Senior engineer",
+      description: "Build and operate reliable distributed systems for global customers.",
+      salary: "$80k - $100k per year",
+    }]);
+    expect(job).toMatchObject({
+      budgetMin: 80_000,
+      budgetMax: 100_000,
+      budgetType: "salary",
+      budgetPeriod: "year",
+    });
+  });
+
+  it("normalizes RSS items without inventing missing jobs", () => {
+    const jobs = normalizeRssFeed(`<?xml version="1.0"?><rss><channel><item><guid>job-1</guid><title>Video Editor</title><link>https://jobs.example.com/1</link><description><![CDATA[Edit weekly creator videos.]]></description><category>Creative</category></item><item><title>Missing URL</title></item></channel></rss>`, {
+      source: "rss_example",
+      attribution: "Example Jobs",
+    });
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0]).toMatchObject({
+      externalId: "job-1",
+      source: "rss_example",
+      title: "Video Editor",
+      category: "Creative",
+    });
+  });
+
+  it("normalizes an email alert using its real listing link", () => {
+    const job = normalizeEmailAlert({
+      messageId: "alert-1@example.com",
+      subject: "Job alert: DevOps Engineer",
+      text: "A new role is available: https://jobs.example.com/devops-1",
+      from: "alerts@example.com",
+    });
+    expect(job).toMatchObject({
+      externalId: "alert-1@example.com",
+      title: "DevOps Engineer",
+      sourceUrl: "https://jobs.example.com/devops-1",
+      source: "email_alert",
+    });
   });
 
   it("normalizes Remotive records and drops incomplete rows", () => {
