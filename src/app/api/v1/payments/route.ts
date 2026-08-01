@@ -6,6 +6,7 @@ import { createDokuCheckout } from "@/lib/payment/doku";
 import { createMidtransPayment } from "@/lib/payment/midtrans";
 import { createPayoneerPayment } from "@/lib/payment/payoneer";
 import { requirePaymentProvider } from "@/lib/payment/providers";
+import { requireProductionReadiness } from "@/lib/production/readiness";
 import { createXenditPackPayment, createXenditRecurringPayment } from "@/lib/payment/xendit";
 import { prisma } from "@/lib/prisma";
 
@@ -27,9 +28,16 @@ export async function POST(request: NextRequest) {
       if (prior.userId !== user.id) throw new ApiError(409, "Idempotency key is already in use");
       return NextResponse.json({ paymentId: prior.id, status: prior.status, action: storedAction(prior.metadata) });
     }
-    const quote = await prisma.checkoutQuote.findFirst({ where: { id: input.quoteId, userId: user.id }, include: { product: true } });
+    const quote = await prisma.checkoutQuote.findFirst({
+      where: { id: input.quoteId, userId: user.id },
+      include: { product: true, order: { select: { editingMode: true } } },
+    });
     if (!quote) throw new ApiError(404, "Quote not found");
     if (!quote.status.startsWith("OPEN") || quote.expiresAt <= new Date()) throw new ApiError(409, "Quote has expired or was already used");
+    if (quote.product.kind === "PROJECT") {
+      if (!quote.order) throw new ApiError(409, "Project quote is not connected to an order");
+      requireProductionReadiness(quote.order.editingMode === "360" ? "360" : "standard");
+    }
     const isSubscription = quote.product.kind === "SUBSCRIPTION";
     const provider = await requirePaymentProvider(input.gateway, quote.product.kind);
     if (isSubscription && input.gateway !== "xendit") throw new ApiError(400, "Automatic subscriptions require Xendit");

@@ -8,6 +8,7 @@ import {
   ProductionBriefInputSchema,
 } from "@/lib/production/brief";
 import { PROJECT_TIERS } from "@/lib/production/catalog";
+import { requireProductionReadiness } from "@/lib/production/readiness";
 import { generateInvoiceNumber, generateOrderNumber } from "@/lib/utils";
 import { Editor360ConfigSchema } from "@/lib/video360/contracts";
 
@@ -35,6 +36,7 @@ export async function POST(request: NextRequest) {
   try {
     const user = await requireUser();
     const input = Schema.parse(await request.json());
+    requireProductionReadiness(input.editingMode);
     const key = request.headers.get("idempotency-key");
     if (!key || key.length < 12)
       throw new ApiError(400, "A valid Idempotency-Key header is required");

@@ -5,11 +5,13 @@ import { reserveCredits } from "@/lib/billing/wallet";
 import { prisma } from "@/lib/prisma";
 import { getRenderQueue } from "@/lib/queue/queues";
 import { R2Keys } from "@/lib/storage/r2";
+import { requireProductionReadiness } from "@/lib/production/readiness";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const { user, order } = await requireOrderAccess(id);
+    requireProductionReadiness(order.editingMode === "360" ? "360" : "standard");
     if (user.role === "admin" && !order.userId) throw new ApiError(400, "Draft lead orders cannot render without a customer wallet");
     const key = request.headers.get("idempotency-key");
     if (!key || key.length < 12) throw new ApiError(400, "A valid Idempotency-Key header is required");

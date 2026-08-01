@@ -3,6 +3,7 @@ import { ApiError, apiError, requireOrderAccess } from "@/lib/api/authz";
 import { createCheckoutQuote } from "@/lib/billing/quotes";
 import { prisma } from "@/lib/prisma";
 import { PROJECT_TIERS, type ProjectTier } from "@/lib/production/catalog";
+import { requireProductionReadiness } from "@/lib/production/readiness";
 
 export async function POST(
   request: NextRequest,
@@ -17,6 +18,7 @@ export async function POST(
       throw new ApiError(409, "This order does not use project pricing");
     if (order.status !== "AWAITING_PAYMENT")
       throw new ApiError(409, "This order is not awaiting payment");
+    requireProductionReadiness(order.editingMode === "360" ? "360" : "standard");
 
     const asset = await prisma.uploadedAsset.findFirst({
       where: { orderId: order.id, userId: user.id, status: "VERIFIED" },
