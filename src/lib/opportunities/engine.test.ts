@@ -86,6 +86,21 @@ describe("opportunity connector normalization", () => {
     expect(jobs[0]?.description).toBe("Remote hiring");
   });
 
+  it("repairs upstream mojibake in opportunity titles", () => {
+    const brokenMiddleDot = String.fromCharCode(0xc2, 0xb7);
+    const brokenAWithTilde = String.fromCharCode(0xc3, 0xa3);
+    const jobs = normalizeRemoteOkJobs([
+      {
+        id: 19,
+        position: `Product Manager ${brokenMiddleDot} S${brokenAWithTilde}o Paulo`,
+        url: "https://remoteok.com/remote-jobs/19",
+        description: "Own the product roadmap",
+      },
+    ]);
+
+    expect(jobs[0]?.title).toBe("Product Manager · São Paulo");
+  });
+
   it("normalizes Himalayas salary, location, and stable GUID", () => {
     const jobs = normalizeHimalayasJobs([
       {

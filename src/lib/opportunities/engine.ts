@@ -329,7 +329,7 @@ export function normalizeRemotiveJobs(jobs: RemotiveJob[]) {
     return [
       {
         externalId: String(job.id),
-        title: job.title.slice(0, 500),
+        title: stripHtml(job.title).slice(0, 500),
         description: stripHtml(job.description || ""),
         sourceUrl: job.url,
         source: "remotive",
@@ -369,7 +369,7 @@ export function normalizeRemoteOkJobs(jobs: RemoteOkJob[]) {
     return [
       {
         externalId: String(job.id),
-        title: job.position.slice(0, 500),
+        title: stripHtml(job.position).slice(0, 500),
         description: stripHtml(job.description || ""),
         sourceUrl,
         source: "remoteok",
@@ -411,7 +411,7 @@ export function normalizeHimalayasJobs(jobs: HimalayasJob[]) {
     return [
       {
         externalId: job.guid,
-        title: job.title.slice(0, 500),
+        title: stripHtml(job.title).slice(0, 500),
         description: stripHtml(job.description || job.excerpt || ""),
         sourceUrl: job.applicationLink,
         source: "himalayas",
