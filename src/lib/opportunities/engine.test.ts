@@ -72,6 +72,20 @@ describe("opportunity connector normalization", () => {
     expect(jobs[0]?.description).toBe("Remote — creator’s role");
   });
 
+  it("repairs non-breaking spaces before whitespace normalization", () => {
+    const brokenSpace = String.fromCharCode(0xc2, 0xa0);
+    const jobs = normalizeRemoteOkJobs([
+      {
+        id: 18,
+        position: "Editor",
+        url: "https://remoteok.com/remote-jobs/18",
+        description: `Remote${brokenSpace}hiring`,
+      },
+    ]);
+
+    expect(jobs[0]?.description).toBe("Remote hiring");
+  });
+
   it("normalizes Himalayas salary, location, and stable GUID", () => {
     const jobs = normalizeHimalayasJobs([
       {

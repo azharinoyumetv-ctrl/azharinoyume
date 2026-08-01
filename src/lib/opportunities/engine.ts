@@ -170,19 +170,17 @@ const CAPABILITY_ROUTES = [
 ] as const;
 
 function stripHtml(value: string) {
-  const cleaned = value
+  const decodedHtml = value
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/gi, " ")
     .replace(/&amp;/gi, "&")
     .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'")
-    .replace(/\s+/g, " ")
-    .trim();
+    .replace(/&#39;/gi, "'");
 
   const decoder = new TextDecoder("utf-8", { fatal: true });
-  const repaired = cleaned.replace(/[\u0080-\u00ff]{2,}/g, (segment) => {
+  const repaired = decodedHtml.replace(/[\u0080-\u00ff]{2,}/g, (segment) => {
     try {
       return decoder.decode(
         Uint8Array.from(segment, (character) => character.charCodeAt(0)),
@@ -191,7 +189,11 @@ function stripHtml(value: string) {
       return segment;
     }
   });
-  return repaired.slice(0, 30_000);
+  return repaired
+    .replace(/\u00c2(?=\s)/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 30_000);
 }
 
 function parseSalary(value?: string) {
