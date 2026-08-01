@@ -24,7 +24,7 @@ npx prisma generate
 
 echo "[5] Build Next.js"
 npm run build
-npm prune --omit=dev
+npm prune --omit=dev --legacy-peer-deps
 
 echo "[6] Restart app with PM2"
 pm2 startOrReload ecosystem.config.cjs --update-env
