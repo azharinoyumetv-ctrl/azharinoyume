@@ -170,7 +170,7 @@ const CAPABILITY_ROUTES = [
 ] as const;
 
 function stripHtml(value: string) {
-  return value
+  const cleaned = value
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<[^>]+>/g, " ")
@@ -179,8 +179,19 @@ function stripHtml(value: string) {
     .replace(/&quot;/gi, '"')
     .replace(/&#39;/gi, "'")
     .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 30_000);
+    .trim();
+
+  const decoder = new TextDecoder("utf-8", { fatal: true });
+  const repaired = cleaned.replace(/[\u0080-\u00ff]{2,}/g, (segment) => {
+    try {
+      return decoder.decode(
+        Uint8Array.from(segment, (character) => character.charCodeAt(0)),
+      );
+    } catch {
+      return segment;
+    }
+  });
+  return repaired.slice(0, 30_000);
 }
 
 function parseSalary(value?: string) {

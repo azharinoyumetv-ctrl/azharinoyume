@@ -59,6 +59,19 @@ describe("opportunity connector normalization", () => {
     });
   });
 
+  it("repairs UTF-8 punctuation that a source decoded as Latin-1", () => {
+    const jobs = normalizeRemoteOkJobs([
+      {
+        id: 17,
+        position: "Editor",
+        url: "https://remoteok.com/remote-jobs/17",
+        description: "Remote \u00e2\u0080\u0094 creator\u00e2\u0080\u0099s role",
+      },
+    ]);
+
+    expect(jobs[0]?.description).toBe("Remote — creator’s role");
+  });
+
   it("normalizes Himalayas salary, location, and stable GUID", () => {
     const jobs = normalizeHimalayasJobs([
       {
