@@ -13,7 +13,7 @@ export default async function AdminSettingsPage() {
   ]);
   return <SettingsClient
     fx={fx ? { rate: Number(fx.rate), version: fx.version, effectiveAt: fx.effectiveAt.toISOString() } : null}
-    products={products.map((item) => ({ key: item.key, name: item.name, usdCents: item.usdCents, credits: item.credits, kind: item.kind }))}
+    products={products.map((item) => ({ key: item.key, name: item.name, usdCents: item.usdCents, credits: item.credits, kind: item.kind, active: item.active }))}
     flags={flags.map((item) => ({ key: item.key, enabled: item.enabled, description: item.description }))}
     gateways={gateways.map((gateway) => ({ id: gateway.id, name: gateway.name, label: gateway.label, description: gateway.description, mode: gateway.mode, supports: gateway.supports, enabled: gateway.enabled, configured: gateway.configured, detail: gateway.detail, checkoutUrl: gateway.checkoutUrl }))}
   />;

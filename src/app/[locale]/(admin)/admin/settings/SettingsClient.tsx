@@ -17,7 +17,7 @@ type Gateway = {
 
 type Props = {
   fx: { rate: number; version: number; effectiveAt: string } | null;
-  products: Array<{ key: string; name: string; usdCents: number; credits: number; kind: string }>;
+  products: Array<{ key: string; name: string; usdCents: number; credits: number; kind: string; active: boolean }>;
   flags: Array<{ key: string; enabled: boolean; description: string | null }>;
   gateways: Gateway[];
 };
@@ -93,7 +93,7 @@ export default function SettingsClient({ fx, products, flags, gateways: initialG
       </div>
     </section>
     <section><h2 className="text-lg font-bold">USD to IDR rate</h2><p className="mb-4 text-sm text-muted-foreground">Updated manually. Checkout warns after 24 hours and pauses after 48 hours.</p><div className="flex flex-col gap-3 min-[480px]:flex-row"><input type="number" inputMode="decimal" value={rate} onChange={(event) => setRate(event.target.value)} className="glass min-h-12 min-w-0 flex-1 rounded-xl border border-white/10 px-4 py-3"/><button onClick={saveRate} className="gold-gradient min-h-12 rounded-xl px-5 font-bold text-black">Save rate</button></div>{fx && <p className="mt-2 text-xs text-muted-foreground">Version {fx.version} · {new Date(fx.effectiveAt).toLocaleString()}</p>}</section>
-    <section><h2 className="text-lg font-bold mb-4">Catalog</h2><div className="grid sm:grid-cols-2 gap-3">{products.map((product) => <div key={product.key} className="glass border border-white/5 rounded-xl p-4"><b>{product.name}</b><div className="text-sm text-muted-foreground">${(product.usdCents / 100).toFixed(2)} · {product.credits.toLocaleString()} credits · {product.kind}</div></div>)}</div></section>
+    <section><h2 className="text-lg font-bold mb-4">Catalog</h2><div className="grid sm:grid-cols-2 gap-3">{products.map((product) => <div key={product.key} className={`glass rounded-xl border p-4 ${product.active ? "border-green-500/20" : "border-white/5 opacity-60"}`}><div className="flex items-start justify-between gap-3"><b>{product.name}</b><span className={`text-[10px] uppercase tracking-widest ${product.active ? "text-green-400" : "text-muted-foreground"}`}>{product.active ? "Active" : "Archived"}</span></div><div className="text-sm text-muted-foreground">${(product.usdCents / 100).toFixed(2)} · {product.kind}{product.kind === "PROJECT" ? " · one-time project" : ` · ${product.credits.toLocaleString()} legacy credits`}</div></div>)}</div></section>
     <section><h2 className="mb-4 text-lg font-bold">Experimental features</h2><div className="space-y-3">{flags.map((flag) => <div key={flag.key} className="glass flex flex-col justify-between gap-3 rounded-xl border border-white/10 p-4 min-[480px]:flex-row min-[480px]:items-center"><div className="min-w-0"><b className="break-words">{flag.key}</b><p className="text-xs text-muted-foreground">{flag.description}</p></div><button onClick={() => toggleFeature(flag.key, flag.enabled)} className={`min-h-12 rounded-lg px-4 text-left min-[480px]:text-center ${flag.enabled ? "text-green-400" : "text-muted-foreground"}`}>{flag.enabled ? "Enabled" : "Disabled"}</button></div>)}</div></section>
   </div>;
 }

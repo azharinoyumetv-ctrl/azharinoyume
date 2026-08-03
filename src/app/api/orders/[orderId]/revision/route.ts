@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { apiError, requireOrderAccess } from "@/lib/api/authz";
+import { z } from "zod";
+
+const RevisionSchema = z.object({ notes: z.string().trim().min(10).max(3_000) });
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ orderId: string }> }) {
   try {
   const { orderId } = await params;
-  const { notes } = await req.json();
+  const { notes } = RevisionSchema.parse(await req.json());
   const { order } = await requireOrderAccess(orderId);
   if (!order) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (order.status !== "DRAFT_REVIEW") return NextResponse.json({ error: "No draft ready" }, { status: 400 });
@@ -13,18 +16,33 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ord
     return NextResponse.json({ error: "Revision limit reached" }, { status: 400 });
   }
 
+  const revisionNumber = order.revisionCount + 1;
   await prisma.$transaction([
     prisma.revision.create({
       data: {
         orderId,
-        revisionNumber: order.revisionCount + 1,
+        revisionNumber,
         customerNotes: notes,
         status: "requested",
       },
     }),
     prisma.order.update({
       where: { id: orderId },
-      data: { status: "REVISION_REQUESTED", revisionCount: { increment: 1 }, manualReviewRequired: true },
+      data: {
+        status: "ANALYSIS_QUEUED",
+        revisionCount: { increment: 1 },
+        manualReviewRequired: true,
+        adminApproved: false,
+        customerPromptOriginal: `${order.customerPromptOriginal || ""}\n\nConfirmed revision ${revisionNumber}: ${notes}`.trim(),
+      },
+    }),
+    prisma.queueJob.create({
+      data: {
+        orderId,
+        jobType: "MEDIA_ANALYSIS",
+        status: "pending",
+        priority: order.package === "premium" ? 20 : order.package === "plus" ? 10 : 0,
+      },
     }),
   ]);
 
@@ -37,8 +55,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ord
     }).catch(() => {});
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, status: "ANALYSIS_QUEUED", revisionNumber });
   } catch (error) {
+    if (error instanceof z.ZodError) return NextResponse.json({ error: "Revision notes must be between 10 and 3,000 characters" }, { status: 400 });
     return apiError(error);
   }
 }

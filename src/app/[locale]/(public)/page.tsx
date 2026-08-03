@@ -1,4 +1,4 @@
-import { useTranslations } from "next-intl";
+import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -11,12 +11,15 @@ import {
   AnimatedFact,
   CheckBadge,
   DirectionGallery,
-  HeroVisual,
   KineticTicker,
   MotionCta,
   ProductionFlow,
   Reveal,
 } from "@/components/marketing/MotionExperience";
+import ProductionWorkflowVisual from "@/components/marketing/ProductionWorkflowVisual";
+import { getPaymentProviderSettings } from "@/lib/payment/providers";
+import { isFeatureEnabled } from "@/lib/features";
+import { PROJECT_TIERS } from "@/lib/production/catalog";
 
 const DIRECTIONS = [
   { label: "Cinematic", position: "0% 0%" },
@@ -24,8 +27,15 @@ const DIRECTIONS = [
   { label: "Product", position: "100% 0%" },
 ];
 
-export default function HomePage() {
-  const t = useTranslations();
+export const dynamic = "force-dynamic";
+
+export default async function HomePage() {
+  const [t, providers, show360] = await Promise.all([
+    getTranslations(),
+    getPaymentProviderSettings(),
+    isFeatureEnabled("r_and_d_360_video"),
+  ]);
+  const availableProviderCount = providers.filter((provider) => provider.enabled && provider.configured).length;
 
   return (
     <div className="overflow-hidden bg-[#07080a] text-white">
@@ -52,12 +62,12 @@ export default function HomePage() {
               QA, and optional human oversight.
             </p>
             <div className="mt-8 flex flex-col gap-3 min-[440px]:flex-row">
-              <MotionCta
+              {show360 && <MotionCta
                 href="/order"
                 className="gold-gradient flex min-h-14 items-center justify-center gap-2 rounded-xl px-6 text-sm font-black text-black shadow-[0_16px_45px_rgba(212,160,23,.16)]"
               >
                 Start a project <ArrowRight className="h-4 w-4" />
-              </MotionCta>
+              </MotionCta>}
               <MotionCta
                 href="/360-editor"
                 className="flex min-h-14 items-center justify-center gap-2 rounded-xl border border-cyan-200/15 bg-cyan-200/[.055] px-6 text-sm font-bold text-cyan-50"
@@ -71,11 +81,11 @@ export default function HomePage() {
               <CheckBadge>Automatic expiry</CheckBadge>
             </div>
           </Reveal>
-          <HeroVisual />
+          <ProductionWorkflowVisual />
         </div>
       </section>
 
-      <KineticTicker />
+      <KineticTicker show360={show360} />
 
       <section className="border-b border-white/[.06] bg-white/[.015] px-4 sm:px-6 lg:px-8">
         <div className="mx-auto grid max-w-7xl grid-cols-2 divide-x divide-y divide-white/[.06] border-x border-white/[.06] sm:grid-cols-4 sm:divide-y-0">
@@ -85,8 +95,8 @@ export default function HomePage() {
             label="final render retention"
             delay={0.08}
           />
-          <AnimatedFact value="3" label="payment gateways" delay={0.16} />
-          <AnimatedFact value="360°" label="spherical reframe" delay={0.24} />
+          <AnimatedFact value={String(availableProviderCount)} label="payment gateways ready" delay={0.16} />
+          <AnimatedFact value={show360 ? "360°" : "3"} label={show360 ? "spherical reframe" : "output variants"} delay={0.24} />
         </div>
       </section>
 
@@ -131,7 +141,7 @@ export default function HomePage() {
             </h2>
           </Reveal>
           <Reveal delay={0.08}>
-            <ProductionFlow />
+            <ProductionFlow show360={show360} />
           </Reveal>
         </div>
       </section>
@@ -159,20 +169,20 @@ export default function HomePage() {
             {[
               {
                 key: "basic",
-                price: 14.99,
+                price: PROJECT_TIERS.basic.priceUsd,
                 label: "Automated short",
                 accent: "border-white/[.08]",
               },
               {
                 key: "plus",
-                price: 44.99,
+                price: PROJECT_TIERS.plus.priceUsd,
                 label: "Creator production",
                 accent:
                   "border-amber-300/25 bg-amber-300/[.035] shadow-[0_22px_70px_rgba(212,160,23,.08)]",
               },
               {
                 key: "premium",
-                price: 129.99,
+                price: PROJECT_TIERS.premium.priceUsd,
                 label: "Commercial production",
                 accent: "border-violet-300/20 bg-violet-300/[.03]",
               },
@@ -229,8 +239,7 @@ export default function HomePage() {
                 Make the cut feel inevitable.
               </h2>
               <p className="mt-4 max-w-2xl text-sm leading-6 text-white/45 sm:text-base">
-                Start a standard edit or open the 360 workspace and direct the
-                camera yourself.
+                {show360 ? "Start a standard edit or open the 360 workspace and direct the camera yourself." : "Start a guided project and let the production engine build, render, and verify every promised output."}
               </p>
               <div className="mt-5 flex flex-wrap gap-4 text-[10px] font-bold uppercase tracking-wider text-white/30">
                 <span className="flex items-center gap-2">

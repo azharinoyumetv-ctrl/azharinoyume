@@ -14,6 +14,10 @@ export const ProductionBriefInputSchema = z.object({
   colorGrade: z.string().trim().min(2).max(100),
   captionStyle: z.string().trim().min(2).max(100),
   musicStyle: z.string().trim().min(2).max(100),
+  brandName: z.string().trim().max(120).default(""),
+  brandPrimaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).default("#d4a017"),
+  brandSecondaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).default("#ffffff"),
+  brandRules: z.string().trim().max(2_000).default(""),
   platform: z.enum(PlatformKeys),
   aspectRatio: z.enum(["16:9", "9:16", "1:1", "4:5", "custom"]),
   resolution: z.enum(["720p", "1080p", "1440p", "4K"]),
@@ -171,6 +175,12 @@ export function evaluateProductionBrief(input: ProductionBriefInput) {
         colorGrade: input.colorGrade,
         captionStyle: input.captionStyle,
         musicStyle: input.musicStyle,
+        brand: {
+          name: input.brandName,
+          primaryColor: input.brandPrimaryColor,
+          secondaryColor: input.brandSecondaryColor,
+          rules: input.brandRules,
+        },
       },
       delivery: {
         platform: input.platform,

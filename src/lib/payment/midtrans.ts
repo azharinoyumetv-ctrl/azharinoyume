@@ -108,7 +108,7 @@ export async function createMidtransPayment(input: {
         email: input.customer.email,
       },
       callbacks: {
-        finish: `${appUrl}/portal/billing?payment=${encodeURIComponent(input.referenceId)}`,
+        finish: `${appUrl}/portal?payment=${encodeURIComponent(input.referenceId)}`,
       },
     }),
   });

@@ -20,8 +20,10 @@ const FILTERS = ["All", "Story", "Brand", "Social"] as const;
 
 export default function InteractiveStyleGrid({
   styles,
+  show360 = false,
 }: {
   styles: StyleDirection[];
+  show360?: boolean;
 }) {
   const reduceMotion = useReducedMotion();
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("All");
@@ -151,7 +153,7 @@ export default function InteractiveStyleGrid({
           ))}
         </AnimatePresence>
 
-        {filter === "All" && (
+        {filter === "All" && show360 && (
           <motion.article
             layout
             initial={reduceMotion ? false : { opacity: 0, y: 24 }}

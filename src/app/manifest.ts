@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Azyume Cut AI",
     short_name: "Azyume",
-    description: "AI-assisted video editing, credits, delivery, and administration.",
+    description: "Automated video production, delivery, and administration.",
     start_url: "/en/portal",
     display: "standalone",
     background_color: "#050508",

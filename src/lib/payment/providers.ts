@@ -20,20 +20,20 @@ export const PAYMENT_PROVIDER_DEFINITIONS: ProviderDefinition[] = [
     id: "00000000-0000-4000-8000-000000000001",
     name: "doku",
     label: "DOKU",
-    description: "Indonesian Checkout for one-time credit packs.",
+    description: "Indonesian Checkout for one-time video projects.",
     mode: "auto",
     regions: ["ID"],
-    supports: ["PACK", "PROJECT"],
+    supports: ["PROJECT"],
     defaultEnabled: true,
   },
   {
     id: "00000000-0000-4000-8000-000000000002",
     name: "xendit",
     label: "Xendit v3",
-    description: "QRIS and e-wallet packs, plus token-ready recurring cards.",
+    description: "QRIS and e-wallet checkout for one-time video projects.",
     mode: "auto",
     regions: ["ID"],
-    supports: ["PACK", "SUBSCRIPTION", "PROJECT"],
+    supports: ["PROJECT"],
     defaultEnabled: true,
   },
   {
@@ -43,7 +43,7 @@ export const PAYMENT_PROVIDER_DEFINITIONS: ProviderDefinition[] = [
     description: "Indonesian cards, QRIS, bank transfer, and e-wallet checkout.",
     mode: "auto",
     regions: ["ID"],
-    supports: ["PACK", "PROJECT"],
+    supports: ["PROJECT"],
     defaultEnabled: true,
   },
   {
@@ -53,7 +53,7 @@ export const PAYMENT_PROVIDER_DEFINITIONS: ProviderDefinition[] = [
     description: "Hosted payment link with administrator reconciliation.",
     mode: "manual",
     regions: ["GLOBAL"],
-    supports: ["PACK", "PROJECT"],
+    supports: ["PROJECT"],
     defaultEnabled: false,
   },
 ];
@@ -68,8 +68,10 @@ function configObject(value: unknown): Record<string, unknown> {
 
 export function paymentProviderReadiness(name: PaymentGateway, options?: { checkoutUrl?: string }) {
   if (name === "doku") {
-    const configured = Boolean(process.env.DOKU_CLIENT_ID && process.env.DOKU_SHARED_KEY);
-    return { configured, detail: configured ? "Credentials configured" : "DOKU_CLIENT_ID or DOKU_SHARED_KEY is missing" };
+    const clientId = process.env.DOKU_CLIENT_ID || process.env.DOKU_PRODUCTION_CLIENT_ID || process.env.DOKU_SANDBOX_CLIENT_ID;
+    const sharedKey = process.env.DOKU_SHARED_KEY || process.env.DOKU_PRODUCTION_SHARED_KEY || process.env.DOKU_SANDBOX_SHARED_KEY;
+    const configured = Boolean(clientId && sharedKey);
+    return { configured, detail: configured ? "API and webhook signing configured" : "DOKU credentials are not available to Studio" };
   }
   if (name === "xendit") {
     const configured = Boolean(process.env.XENDIT_SECRET_KEY && process.env.XENDIT_WEBHOOK_SECRET);

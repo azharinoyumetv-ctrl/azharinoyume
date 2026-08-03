@@ -240,15 +240,15 @@ export function HeroVisual() {
   );
 }
 
-export function KineticTicker() {
+export function KineticTicker({ show360 = false }: { show360?: boolean }) {
   const reduceMotion = useReducedMotion();
   const items = [
     "Cinematic pacing",
-    "360 reframe",
     "Human review",
-    "Beat sync",
+    "Music ducking",
     "Private delivery",
     "Vertical-first cuts",
+    ...(show360 ? ["360 reframe"] : []),
   ];
   return (
     <div
@@ -329,7 +329,7 @@ const FLOW = [
   { title: "Deliver", copy: "Private expiring links", icon: LockKeyhole },
 ];
 
-export function ProductionFlow() {
+export function ProductionFlow({ show360 = false }: { show360?: boolean }) {
   const reduceMotion = useReducedMotion();
   const [active, setActive] = useState(0);
   useEffect(() => {
@@ -377,7 +377,7 @@ export function ProductionFlow() {
             </span>
             <span className="mt-8 block text-lg font-black">{title}</span>
             <span className="mt-2 block text-xs leading-5 text-white/38">
-              {copy}
+              {title === "Direct" && !show360 ? "Guided production brief" : copy}
             </span>
             {active === index && (
               <motion.span

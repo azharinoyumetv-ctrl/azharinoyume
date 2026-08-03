@@ -8,9 +8,10 @@ import {
   ProductionBriefInputSchema,
 } from "@/lib/production/brief";
 import { PROJECT_TIERS } from "@/lib/production/catalog";
-import { requireProductionReadiness } from "@/lib/production/readiness";
+import { requireBriefCapabilityReadiness } from "@/lib/production/readiness";
 import { generateInvoiceNumber, generateOrderNumber } from "@/lib/utils";
 import { Editor360ConfigSchema } from "@/lib/video360/contracts";
+import { isFeatureEnabled } from "@/lib/features";
 
 const Schema = ProductionBriefInputSchema.extend({
   editingMode: z.enum(["standard", "360"]).default("standard"),
@@ -36,7 +37,9 @@ export async function POST(request: NextRequest) {
   try {
     const user = await requireUser();
     const input = Schema.parse(await request.json());
-    requireProductionReadiness(input.editingMode);
+    if (input.editingMode === "360" && !(await isFeatureEnabled("r_and_d_360_video")))
+      throw new ApiError(404, "360 Studio is not enabled");
+    requireBriefCapabilityReadiness({ mode: input.editingMode, tier: input.tier, musicStyle: input.musicStyle });
     const key = request.headers.get("idempotency-key");
     if (!key || key.length < 12)
       throw new ApiError(400, "A valid Idempotency-Key header is required");
@@ -81,6 +84,10 @@ export async function POST(request: NextRequest) {
         colorGrade: input.colorGrade,
         captionStyle: input.captionStyle,
         musicStyle: input.musicStyle,
+        brandName: input.brandName || null,
+        brandPrimaryColor: input.brandPrimaryColor,
+        brandSecondaryColor: input.brandSecondaryColor,
+        brandRules: input.brandRules || null,
         storyPriority: input.storyPriority,
         mandatoryContent: input.mandatoryContent,
         excludedContent: input.excludedContent,

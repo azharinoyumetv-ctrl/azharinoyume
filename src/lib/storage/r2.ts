@@ -6,14 +6,15 @@ import { pipeline } from "node:stream/promises";
 
 export const r2 = new S3Client({
   region: "auto",
-  endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  endpoint: process.env.R2_ENDPOINT?.trim()
+    || `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
   credentials: {
     accessKeyId: process.env.R2_ACCESS_KEY_ID!,
     secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
   },
 });
 
-export const BUCKET = process.env.R2_BUCKET_NAME!;
+export const BUCKET = (process.env.R2_BUCKET_NAME || process.env.R2_BUCKET)!;
 
 export async function uploadToR2(key: string, body: Buffer | Uint8Array, contentType: string) {
   await r2.send(new PutObjectCommand({ Bucket: BUCKET, Key: key, Body: body, ContentType: contentType }));
@@ -76,8 +77,8 @@ export const R2Keys = {
   reference: (customerId: string, orderId: string, filename: string) =>
     `customer_uploads/${customerId}/${orderId}/references/${filename}`,
   brief: (orderId: string) => `orders/${orderId}/brief/edit_brief.json`,
-  draft: (orderId: string, version: number) => `orders/${orderId}/drafts/draft_v${version}.mp4`,
-  final: (orderId: string, format = "mp4") => `orders/${orderId}/final/final_delivery.${format}`,
+  draft: (orderId: string, version: number, variant = "master") => `orders/${orderId}/drafts/draft_v${version}_${variant.replace(/[^a-z0-9_-]/gi, "-")}.mp4`,
+  final: (orderId: string, variant = "master", format = "mp4") => `orders/${orderId}/final/final_${variant.replace(/[^a-z0-9_-]/gi, "-")}.${format}`,
   captions: (orderId: string) => `orders/${orderId}/captions/subtitles.srt`,
   thumbnail: (orderId: string) => `orders/${orderId}/thumbnails/thumbnail.jpg`,
   invoice: (invoiceId: string) => `invoices/${invoiceId}/invoice.pdf`,

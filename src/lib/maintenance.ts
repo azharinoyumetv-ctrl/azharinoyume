@@ -1,7 +1,4 @@
-import crypto from "node:crypto";
-import { createCheckoutQuote } from "@/lib/billing/quotes";
 import { releaseReservation } from "@/lib/billing/wallet";
-import { createXenditRecurringPayment } from "@/lib/payment/xendit";
 import { prisma } from "@/lib/prisma";
 import { abortMultipartUpload, deleteFromR2 } from "@/lib/storage/r2";
 
@@ -10,7 +7,6 @@ export async function runMaintenance() {
   await cleanupExpiredUploads();
   await cleanupExpiredDeliveries();
   await expireCreditLots();
-  await renewSubscriptions();
 }
 
 async function releaseExpiredReservations() {
@@ -52,41 +48,4 @@ async function expireCreditLots() {
       await tx.creditLedgerEntry.create({ data: { walletId: wallet.id, userId: current.userId, lotId: current.id, entryType: "EXPIRE", amount: -decrement, availableAfter: updated.availableCredits, reservedAfter: updated.reservedCredits, idempotencyKey: `lot:${current.id}:expire` } });
     }).catch(console.error);
   }
-}
-
-async function renewSubscriptions() {
-  const due = await prisma.subscription.findMany({ where: { status: { in: ["ACTIVE", "PAST_DUE"] }, nextBillingAt: { lte: new Date() } }, take: 50 });
-  for (const subscription of due) {
-    if (subscription.cancelAtPeriodEnd) {
-      await prisma.subscription.update({ where: { id: subscription.id }, data: { status: "CANCELLED", nextBillingAt: null } });
-      continue;
-    }
-    if (!subscription.paymentTokenId) {
-      await scheduleRetry(subscription.id, subscription.retryCount, "Missing Xendit payment token");
-      continue;
-    }
-    const period = subscription.currentPeriodEnd?.toISOString().slice(0, 10) || new Date().toISOString().slice(0, 10);
-    const quoteKey = `subscription:${subscription.id}:${period}`;
-    try {
-      const quote = await createCheckoutQuote(subscription.userId, subscription.productKey, quoteKey);
-      const attemptKey = `${quoteKey}:attempt:${subscription.retryCount}`;
-      const existing = await prisma.payment.findUnique({ where: { idempotencyKey: attemptKey } });
-      if (existing) continue;
-      const payment = await prisma.payment.create({ data: { userId: subscription.userId, quoteId: quote.id, subscriptionId: subscription.id, provider: "xendit", referenceId: `AZY-REN-${crypto.randomUUID()}`, idempotencyKey: attemptKey, status: "CREATED", usdCents: quote.usdCents, idrAmount: quote.idrAmount, paymentTokenId: subscription.paymentTokenId, expiresAt: new Date(Date.now() + 24 * 3600_000), metadata: { renewal: true, attempt: subscription.retryCount } } });
-      const result = await createXenditRecurringPayment({ referenceId: payment.referenceId, amount: payment.idrAmount, paymentTokenId: subscription.paymentTokenId, idempotencyKey: attemptKey, initial: false });
-      await prisma.$transaction([prisma.payment.update({ where: { id: payment.id }, data: { providerPaymentId: result.providerPaymentId, status: "PENDING_ACTION", metadata: { renewal: true, action: result.action } } }), prisma.checkoutQuote.update({ where: { id: quote.id }, data: { status: "PROCESSING" } }), prisma.subscription.update({ where: { id: subscription.id }, data: { status: "PAST_DUE", nextBillingAt: new Date(Date.now() + 24 * 3600_000) } })]);
-    } catch (error) {
-      await scheduleRetry(subscription.id, subscription.retryCount, error instanceof Error ? error.message : "Renewal failed");
-    }
-  }
-}
-
-async function scheduleRetry(subscriptionId: string, retryCount: number, reason: string) {
-  const delays = [24, 48, 96];
-  if (retryCount >= delays.length) {
-    await prisma.subscription.update({ where: { id: subscriptionId }, data: { status: "CANCELLED", nextBillingAt: null, retryCount: retryCount + 1 } });
-    return;
-  }
-  await prisma.subscription.update({ where: { id: subscriptionId }, data: { status: "PAST_DUE", retryCount: retryCount + 1, nextBillingAt: new Date(Date.now() + delays[retryCount] * 3600_000) } });
-  console.warn(`[subscriptions] ${subscriptionId}: ${reason}`);
 }

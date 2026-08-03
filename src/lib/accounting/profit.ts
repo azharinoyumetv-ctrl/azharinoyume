@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 
-function gatewayFeeRate(provider: string, channel: string) {
+export function gatewayFeeRate(provider: string, channel: string) {
   const configured = Number(
     process.env[`PAYMENT_FEE_RESERVE_${provider.toUpperCase()}_PCT`],
   );
@@ -10,6 +10,14 @@ function gatewayFeeRate(provider: string, channel: string) {
   if (provider === "doku") return 0.04;
   if (provider === "payoneer") return 0.045;
   return 0.05;
+}
+
+export function estimatedGatewayFee(
+  grossRevenue: number,
+  provider: string,
+  metadata: unknown,
+) {
+  return grossRevenue * gatewayFeeRate(provider, metadataChannel(metadata));
 }
 
 function metadataChannel(metadata: unknown) {
@@ -68,8 +76,7 @@ export async function recalculateOrderProfit(orderId: string) {
     )
     .reduce((sum, [, amount]) => sum + amount, 0);
   const gatewayFee = payment
-    ? grossRevenue *
-      gatewayFeeRate(payment.provider, metadataChannel(payment.metadata))
+    ? estimatedGatewayFee(grossRevenue, payment.provider, payment.metadata)
     : 0;
   const totalDirectCost =
     gatewayFee + aiCost + renderCost + storageCost + revisionCost + otherCost;

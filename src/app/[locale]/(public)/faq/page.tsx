@@ -5,15 +5,14 @@ import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const FAQS = [
-  { q: "How does pricing work?", a: "Buy a one-time credit pack or choose a recurring creator plan. Before checkout, the server converts the USD catalog price to IDR and locks the quote for 15 minutes." },
-  { q: "What payment methods do you accept?", a: "The available methods are controlled by the platform administrator. DOKU supports Indonesian Checkout, Xendit v3 supports QRIS and e-wallets, Midtrans Snap supports Indonesian cards, bank transfer, QRIS, and e-wallet checkout, and Payoneer can be enabled for hosted-link payments that are credited after verification. Recurring plans remain limited to tokenized Xendit cards after merchant activation." },
-  { q: "When are credits charged?", a: "Credits are reserved before rendering and consumed only after a non-empty output is verified in private storage. If every automatic attempt fails, the reservation is released." },
+  { q: "How does pricing work?", a: "Azyume uses one project, one invoice, and one confirmed scope. Before checkout, the server converts the USD catalog price to IDR and locks the quote for 15 minutes." },
+  { q: "What payment methods do you accept?", a: "Checkout shows only payment providers that the administrator has enabled and the server has verified as configured. Unavailable providers are never advertised as active." },
+  { q: "When does production start?", a: "Production starts only after the project invoice is confirmed paid and the required footage has passed media validation." },
   { q: "What file formats do you accept?", a: "Most common video formats are accepted, up to 10 GB. The server inspects the uploaded media with FFprobe before it can enter the render queue." },
   { q: "How long does delivery take?", a: "Timing depends on source duration, resolution, and queue depth. You can track the durable render state from upload verification through draft review." },
-  { q: "How many revisions do I get?", a: "Basic includes 1 revision, Plus includes 2, and Premium includes 3. Review requests move to a traceable revision workflow." },
+  { q: "How many revisions do I get?", a: "Basic includes 1 revision. Plus and Premium include 2 revisions. Review requests move through a traceable revision workflow." },
   { q: "Is my footage private?", a: "Uploads and outputs stay in private Cloudflare R2 storage. The app creates short-lived signed URLs only when an authenticated user uploads or downloads a file." },
-  { q: "What happens when a render fails?", a: "The worker retries automatically. After the final failure, it releases reserved credits, creates a human-review task, and sends an operational alert." },
-  { q: "Can I cancel a subscription?", a: "Yes. Cancellation stops the next renewal and keeps the current credit period active until its scheduled end." },
+  { q: "What happens when a render fails?", a: "The worker retries automatically. After the final failure, the order is moved to human review and an operational alert is sent. A failed render is not presented as a completed delivery." },
 ];
 
 function FAQItem({ q, a }: { q: string; a: string }) {
@@ -22,5 +21,5 @@ function FAQItem({ q, a }: { q: string; a: string }) {
 }
 
 export default function FAQPage() {
-  return <div className="mx-auto max-w-3xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8 lg:py-24"><div className="mb-10 text-center sm:mb-16"><h1 className="mb-4 text-4xl font-black sm:text-5xl">FAQ</h1><p className="text-muted-foreground">Clear answers about credits, payments, rendering, and privacy.</p></div><div className="space-y-3">{FAQS.map(({ q, a }) => <FAQItem key={q} q={q} a={a} />)}</div></div>;
+  return <div className="mx-auto max-w-3xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8 lg:py-24"><div className="mb-10 text-center sm:mb-16"><h1 className="mb-4 text-4xl font-black sm:text-5xl">FAQ</h1><p className="text-muted-foreground">Clear answers about projects, payments, rendering, and privacy.</p></div><div className="space-y-3">{FAQS.map(({ q, a }) => <FAQItem key={q} q={q} a={a} />)}</div></div>;
 }

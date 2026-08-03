@@ -16,7 +16,7 @@ export async function createPayoneerPayment(input: PayoneerPaymentInput, checkou
   url.searchParams.set("currency", "USD");
   url.searchParams.set("customer_email", input.customerEmail);
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL;
-  if (appUrl) url.searchParams.set("return_url", new URL("/portal/billing", appUrl).toString());
+  if (appUrl) url.searchParams.set("return_url", new URL("/portal", appUrl).toString());
   return {
     providerPaymentId: input.referenceId,
     action: { type: "REDIRECT" as const, url: url.toString() },

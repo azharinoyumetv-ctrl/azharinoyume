@@ -14,7 +14,7 @@ describe("Payoneer payment link", () => {
     expect(url.searchParams.get("reference")).toBe("AZY-123");
     expect(url.searchParams.get("amount")).toBe("10.00");
     expect(url.searchParams.get("currency")).toBe("USD");
-    expect(url.searchParams.get("return_url")).toBe("https://azyume.example.test/portal/billing");
+    expect(url.searchParams.get("return_url")).toBe("https://azyume.example.test/portal");
   });
 
   it("rejects an insecure production payment link", async () => {

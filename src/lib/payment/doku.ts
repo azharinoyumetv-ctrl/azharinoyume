@@ -13,8 +13,8 @@ type DokuCheckoutResponse = {
 };
 
 function credentials() {
-  const clientId = process.env.DOKU_CLIENT_ID || "";
-  const sharedKey = process.env.DOKU_SHARED_KEY || "";
+  const clientId = process.env.DOKU_CLIENT_ID || process.env.DOKU_PRODUCTION_CLIENT_ID || process.env.DOKU_SANDBOX_CLIENT_ID || "";
+  const sharedKey = process.env.DOKU_SHARED_KEY || process.env.DOKU_PRODUCTION_SHARED_KEY || process.env.DOKU_SANDBOX_SHARED_KEY || "";
   if (!clientId || !sharedKey) throw new Error("DOKU is not configured");
   return { clientId, sharedKey };
 }

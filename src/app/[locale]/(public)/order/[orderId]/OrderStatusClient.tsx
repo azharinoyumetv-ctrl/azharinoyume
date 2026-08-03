@@ -68,7 +68,14 @@ interface OrderData {
     currency: string;
   }[];
   deliveryLinks: { r2Key: string | null; expiresAt: string | null }[];
-  renders: { status: string }[];
+  renders: {
+    id: string;
+    status: string;
+    renderType: string;
+    variantKey: string;
+    aspectRatio: string | null;
+    resolution: string | null;
+  }[];
   revisions: { revisionNumber: number; status: string }[];
 }
 
@@ -97,7 +104,9 @@ export default function OrderStatusClient({
   }, [data.id]);
 
   const invoice = data.invoices[0];
-  const deliveryLink = data.deliveryLinks[0];
+  const availableRenders = data.renders.filter((render) =>
+    data.status === "DELIVERED" ? render.renderType === "final" : render.renderType === "draft",
+  );
   const statusForProgress =
     {
       QUEUED: "DRAFT_RENDERING",
@@ -182,20 +191,40 @@ export default function OrderStatusClient({
 
   async function approveDraft() {
     setSubmitting(true);
-    await fetch(`/api/orders/${data.id}/approve`, { method: "POST" });
-    setSubmitting(false);
+    setPaymentError("");
+    try {
+      const response = await fetch(`/api/orders/${data.id}/approve`, { method: "POST" });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok)
+        throw new Error(payload.error || "Draft approval could not be completed");
+      window.location.reload();
+    } catch (cause) {
+      setPaymentError(cause instanceof Error ? cause.message : "Draft approval failed");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   async function requestRevision() {
     if (!revisionNote.trim()) return;
     setSubmitting(true);
-    await fetch(`/api/orders/${data.id}/revision`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ notes: revisionNote }),
-    });
-    setRevisionNote("");
-    setSubmitting(false);
+    setPaymentError("");
+    try {
+      const response = await fetch(`/api/orders/${data.id}/revision`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notes: revisionNote }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok)
+        throw new Error(payload.error || "Revision request could not be submitted");
+      setRevisionNote("");
+      window.location.reload();
+    } catch (cause) {
+      setPaymentError(cause instanceof Error ? cause.message : "Revision request failed");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -409,6 +438,13 @@ export default function OrderStatusClient({
               {data.maxRevisions - data.revisionCount} remaining.
             </p>
             <div className="flex flex-col gap-4">
+              <div className="grid gap-2 sm:grid-cols-3">
+                {availableRenders.map((render) => (
+                  <a key={render.id} href={`/api/v1/orders/${data.id}/download?renderId=${encodeURIComponent(render.id)}`} className="glass flex min-h-12 items-center justify-center gap-2 rounded-xl border border-white/10 px-4 text-sm font-semibold">
+                    <Download className="h-4 w-4" /> Review {render.variantKey.replace(/-/g, " ")} · {render.aspectRatio}
+                  </a>
+                ))}
+              </div>
               <button
                 onClick={approveDraft}
                 disabled={submitting}
@@ -440,23 +476,22 @@ export default function OrderStatusClient({
           </div>
         )}
 
-        {data.status === "DELIVERED" && deliveryLink?.r2Key && (
+        {data.status === "DELIVERED" && availableRenders.length > 0 && (
           <div className="dashboard-panel border-green-500/30 p-5 sm:p-8">
             <h2 className="mb-2 text-xl font-bold text-green-400">
               Final video delivered
             </h2>
             <p className="mb-6 text-sm text-muted-foreground">
-              Download the verified deliverable before the secure link expires.
-              {deliveryLink.expiresAt &&
-                ` Link expires ${new Date(deliveryLink.expiresAt).toLocaleDateString()}.`}
+              Download every verified deliverable before its secure retention window expires.
             </p>
-            <a
-              href={`/api/v1/orders/${data.id}/download`}
-              className="flex min-h-14 items-center justify-center gap-2 rounded-xl bg-green-500 px-4 font-bold text-white transition-colors hover:bg-green-600"
-            >
-              <Download className="h-5 w-5" />
-              Download final video
-            </a>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {availableRenders.map((render) => (
+                <a key={render.id} href={`/api/v1/orders/${data.id}/download?renderId=${encodeURIComponent(render.id)}`} className="flex min-h-14 items-center justify-center gap-2 rounded-xl bg-green-500 px-4 text-sm font-bold text-white transition-colors hover:bg-green-600">
+                  <Download className="h-5 w-5" />
+                  {render.variantKey.replace(/-/g, " ")} · {render.aspectRatio} · {render.resolution}
+                </a>
+              ))}
+            </div>
           </div>
         )}
       </div>

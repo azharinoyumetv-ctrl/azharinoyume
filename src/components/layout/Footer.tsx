@@ -1,8 +1,13 @@
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { getTranslations } from "next-intl/server";
+import { getPaymentProviderSettings } from "@/lib/payment/providers";
 
-export default function Footer() {
-  const t = useTranslations("footer");
+export default async function Footer() {
+  const [t, providers] = await Promise.all([
+    getTranslations("footer"),
+    getPaymentProviderSettings(),
+  ]);
+  const availableProviders = providers.filter((provider) => provider.enabled && provider.configured);
   return (
     <footer className="mt-14 border-t border-white/5 bg-background/50 sm:mt-24">
       <div className="mx-auto max-w-7xl px-4 pt-10 pb-[max(2.5rem,env(safe-area-inset-bottom))] sm:px-6 sm:pt-16 sm:pb-[max(4rem,env(safe-area-inset-bottom))] lg:px-8">
@@ -13,7 +18,7 @@ export default function Footer() {
               <span className="text-white"> Cut AI</span>
             </div>
             <p className="text-muted-foreground text-sm max-w-xs">{t("tagline")}</p>
-            <div className="flex flex-wrap items-center gap-2 mt-6 text-xs text-muted-foreground"><span className="px-2.5 py-1 rounded-full border border-white/10">DOKU</span><span className="px-2.5 py-1 rounded-full border border-white/10">Xendit v3</span><span className="px-2.5 py-1 rounded-full border border-white/10">Midtrans</span><span className="px-2.5 py-1 rounded-full border border-white/10">Payoneer</span></div>
+            {availableProviders.length > 0 && <div className="mt-6 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">{availableProviders.map((provider) => <span key={provider.name} className="rounded-full border border-white/10 px-2.5 py-1">{provider.label}</span>)}</div>}
           </div>
           <div>
             <div className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-4">{t("support")}</div>

@@ -60,6 +60,10 @@ model Order {
   colorGrade             String?   @map("color_grade")
   captionStyle           String?   @map("caption_style")
   musicStyle             String?   @map("music_style")
+  brandName              String?   @map("brand_name")
+  brandPrimaryColor      String?   @map("brand_primary_color")
+  brandSecondaryColor    String?   @map("brand_secondary_color")
+  brandRules             String?   @map("brand_rules")
   storyPriority          String?   @map("story_priority")
   mandatoryContent       String?   @map("mandatory_content")
   excludedContent        String?   @map("excluded_content")
@@ -394,7 +398,12 @@ model Render {
   reservedCredits Int       @default(0) @map("reserved_credits")
   actualCredits   Int       @default(0) @map("actual_credits")
   outputChecksum  String?   @map("output_checksum")
+  variantKey      String    @default("master") @map("variant_key")
+  aspectRatio     String?   @map("aspect_ratio")
+  resolution      String?   @map("resolution")
+  frameRate       String?   @map("frame_rate")
   leaseExpiresAt  DateTime? @map("lease_expires_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
 
   order          Order           @relation(fields: [orderId], references: [id])
   renderCostLogs RenderCostLog[]
@@ -402,6 +411,7 @@ model Render {
   qualityCheck   QualityCheck?
 
   @@map("renders")
+  @@index([orderId, variantKey])
 }
 
 model Revision {

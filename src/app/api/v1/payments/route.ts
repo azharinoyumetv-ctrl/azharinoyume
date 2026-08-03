@@ -6,11 +6,11 @@ import { createDokuCheckout } from "@/lib/payment/doku";
 import { createMidtransPayment } from "@/lib/payment/midtrans";
 import { createPayoneerPayment } from "@/lib/payment/payoneer";
 import { requirePaymentProvider } from "@/lib/payment/providers";
-import { requireProductionReadiness } from "@/lib/production/readiness";
-import { createXenditPackPayment, createXenditRecurringPayment } from "@/lib/payment/xendit";
+import { requireBriefCapabilityReadiness } from "@/lib/production/readiness";
+import { createXenditPackPayment } from "@/lib/payment/xendit";
 import { prisma } from "@/lib/prisma";
 
-const Schema = z.object({ quoteId: z.string().uuid(), gateway: z.enum(["doku", "xendit", "midtrans", "payoneer"]), channel: z.string().optional(), paymentTokenId: z.string().min(10).optional() });
+const Schema = z.object({ quoteId: z.string().uuid(), gateway: z.enum(["doku", "xendit", "midtrans", "payoneer"]), channel: z.string().optional() });
 
 function storedAction(metadata: unknown) {
   if (!metadata || typeof metadata !== "object" || !("action" in metadata)) return { type: "NONE" };
@@ -30,22 +30,21 @@ export async function POST(request: NextRequest) {
     }
     const quote = await prisma.checkoutQuote.findFirst({
       where: { id: input.quoteId, userId: user.id },
-      include: { product: true, order: { select: { editingMode: true } } },
+      include: { product: true, order: { select: { editingMode: true, package: true, musicStyle: true } } },
     });
     if (!quote) throw new ApiError(404, "Quote not found");
     if (!quote.status.startsWith("OPEN") || quote.expiresAt <= new Date()) throw new ApiError(409, "Quote has expired or was already used");
-    if (quote.product.kind === "PROJECT") {
-      if (!quote.order) throw new ApiError(409, "Project quote is not connected to an order");
-      requireProductionReadiness(quote.order.editingMode === "360" ? "360" : "standard");
-    }
-    const isSubscription = quote.product.kind === "SUBSCRIPTION";
+    if (quote.product.kind !== "PROJECT") throw new ApiError(410, "Credit packs and subscriptions are retired");
+    if (!quote.order) throw new ApiError(409, "Project quote is not connected to an order");
+    requireBriefCapabilityReadiness({
+      mode: quote.order.editingMode === "360" ? "360" : "standard",
+      tier: quote.order.package as "basic" | "plus" | "premium",
+      musicStyle: quote.order.musicStyle || "none",
+    });
     const provider = await requirePaymentProvider(input.gateway, quote.product.kind);
-    if (isSubscription && input.gateway !== "xendit") throw new ApiError(400, "Automatic subscriptions require Xendit");
-    if (isSubscription && !input.paymentTokenId) throw new ApiError(400, "A Xendit payment token is required; raw card data is never accepted");
     const referenceId = `AZY-${crypto.randomUUID()}`;
     const created = await prisma.$transaction(async (tx) => {
-      const subscription = isSubscription ? await tx.subscription.create({ data: { userId: user.id, productKey: quote.product.key } }) : null;
-      const payment = await tx.payment.create({ data: { userId: user.id, quoteId: quote.id, subscriptionId: subscription?.id, provider: input.gateway, referenceId, idempotencyKey: key, usdCents: quote.usdCents, idrAmount: quote.idrAmount, currency: input.gateway === "payoneer" ? "USD" : "IDR", paymentTokenId: input.paymentTokenId, expiresAt: new Date(Date.now() + 48 * 3600_000), metadata: { channel: input.channel || (isSubscription ? "CARDS" : "QRIS") } } });
+      const payment = await tx.payment.create({ data: { userId: user.id, quoteId: quote.id, provider: input.gateway, referenceId, idempotencyKey: key, usdCents: quote.usdCents, idrAmount: quote.idrAmount, currency: input.gateway === "payoneer" ? "USD" : "IDR", expiresAt: new Date(Date.now() + 48 * 3600_000), metadata: { channel: input.channel || "QRIS" } } });
       await tx.checkoutQuote.update({ where: { id: quote.id }, data: { status: "PROCESSING" } });
       return payment;
     });
@@ -56,10 +55,8 @@ export async function POST(request: NextRequest) {
           ? await createMidtransPayment({ referenceId, amount: quote.idrAmount, customer: { name: user.name, email: user.email } })
         : input.gateway === "payoneer"
           ? await createPayoneerPayment({ referenceId, usdCents: quote.usdCents, customerEmail: user.email }, provider.checkoutUrl)
-          : isSubscription
-            ? await createXenditRecurringPayment({ referenceId, amount: quote.idrAmount, paymentTokenId: input.paymentTokenId!, idempotencyKey: key, initial: true })
-            : await createXenditPackPayment({ referenceId, amount: quote.idrAmount, channel: input.channel || "QRIS", idempotencyKey: key });
-      const payment = await prisma.payment.update({ where: { id: created.id }, data: { providerPaymentId: result.providerPaymentId, status: "PENDING_ACTION", metadata: { channel: input.channel || (isSubscription ? "CARDS" : "QRIS"), action: result.action } } });
+          : await createXenditPackPayment({ referenceId, amount: quote.idrAmount, channel: input.channel || "QRIS", idempotencyKey: key });
+      const payment = await prisma.payment.update({ where: { id: created.id }, data: { providerPaymentId: result.providerPaymentId, status: "PENDING_ACTION", metadata: { channel: input.channel || "QRIS", action: result.action } } });
       return NextResponse.json({ paymentId: payment.id, status: payment.status, action: result.action }, { status: 201 });
     } catch (providerError) {
       await prisma.$transaction([prisma.payment.update({ where: { id: created.id }, data: { status: "FAILED", metadata: { error: providerError instanceof Error ? providerError.message : "Gateway request failed" } } }), prisma.checkoutQuote.update({ where: { id: quote.id }, data: { status: "OPEN" } })]);

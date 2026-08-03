@@ -10,17 +10,23 @@ export async function POST(_req: NextRequest, props: { params: Promise<{ orderId
 
   const order = await prisma.order.findUnique({
     where: { id: params.orderId },
-    include: { renders: { orderBy: { startedAt: "desc" }, take: 1 } },
+    include: { renders: { where: { status: "SUCCEEDED" }, orderBy: { createdAt: "desc" }, include: { qualityCheck: true } } },
   });
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
-  const draftReady = order.renders[0]?.status === "SUCCEEDED";
+  const latest = order.renders[0];
+  if (!latest) return NextResponse.json({ error: "No successful output is ready for approval" }, { status: 409 });
+  const groupPrefix = latest.idempotencyKey ? `${latest.idempotencyKey.split(":").slice(0, -1).join(":")}:` : null;
+  const group = groupPrefix ? order.renders.filter((render) => render.idempotencyKey?.startsWith(groupPrefix)) : [latest];
+  if (group.some((render) => !render.qualityCheck))
+    return NextResponse.json({ error: "QA is incomplete for one or more output variants" }, { status: 409 });
+  const approvedStatus = latest.renderType === "final" ? "DELIVERED" : "DRAFT_REVIEW";
   await prisma.$transaction([
     prisma.order.update({
       where: { id: params.orderId },
       data: {
         adminApproved: true,
-        ...(order.status === "PRODUCTION_REVIEW_REQUIRED" && draftReady
-          ? { status: "DRAFT_REVIEW" }
+        ...(order.status === "PRODUCTION_REVIEW_REQUIRED"
+          ? { status: approvedStatus }
           : {}),
       },
     }),
@@ -28,6 +34,7 @@ export async function POST(_req: NextRequest, props: { params: Promise<{ orderId
       where: { orderId: params.orderId, status: "OPEN" },
       data: { status: "RESOLVED", resolution: "Approved by operator", resolvedAt: new Date() },
     }),
+    ...(approvedStatus === "DELIVERED" ? [prisma.invoice.updateMany({ where: { orderId: params.orderId }, data: { deliveryStatus: "delivered" } })] : []),
     prisma.adminAction.create({
       data: { adminId: session.user.id, action: "approve_order", targetType: "order", targetId: params.orderId },
     }),

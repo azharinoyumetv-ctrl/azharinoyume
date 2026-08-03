@@ -79,6 +79,10 @@ function initialState(searchParams: ReturnType<typeof useSearchParams>): FormSta
     colorGrade: style.defaultColorGrade,
     captionStyle: "minimal",
     musicStyle: "cinematic",
+    brandName: "",
+    brandPrimaryColor: "#d4a017",
+    brandSecondaryColor: "#ffffff",
+    brandRules: "",
     platform: "youtube",
     aspectRatio: "16:9",
     resolution: "1080p",
@@ -534,7 +538,31 @@ export default function OrderForm() {
                       )
                     }
                   />
+                  <TextField
+                    label="Brand name (optional)"
+                    value={form.brandName}
+                    onChange={(value) => update("brandName", value)}
+                    placeholder="Name shown on branded outputs"
+                  />
+                  <TextField
+                    label="Primary brand color"
+                    value={form.brandPrimaryColor}
+                    onChange={(value) => update("brandPrimaryColor", value)}
+                    placeholder="#d4a017"
+                  />
+                  <TextField
+                    label="Secondary brand color"
+                    value={form.brandSecondaryColor}
+                    onChange={(value) => update("brandSecondaryColor", value)}
+                    placeholder="#ffffff"
+                  />
                 </div>
+                <TextAreaField
+                  label="Brand rules (optional)"
+                  value={form.brandRules}
+                  onChange={(value) => update("brandRules", value)}
+                  placeholder="Logo placement, colors to avoid, capitalization, safe-area, or other brand requirements."
+                />
                 <div className="grid gap-4 sm:grid-cols-2">
                   <TextAreaField
                     label="Must include"

@@ -10,8 +10,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ ord
     where: { id: orderId },
     include: {
       invoices: { orderBy: { createdAt: "desc" }, take: 1 },
-      deliveryLinks: { orderBy: { createdAt: "desc" }, take: 1 },
-      renders: { orderBy: { id: "desc" }, take: 1 },
+      deliveryLinks: { orderBy: { createdAt: "desc" } },
+      renders: { where: { status: "SUCCEEDED" }, orderBy: { createdAt: "desc" } },
       revisions: { orderBy: { revisionNumber: "asc" } },
     },
   });

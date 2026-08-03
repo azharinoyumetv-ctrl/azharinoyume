@@ -11,6 +11,8 @@ import {
 } from "@/lib/video360/contracts";
 import { recalculateOrderProfit } from "@/lib/accounting/profit";
 import { z } from "zod";
+import { reviewCreativeOutput } from "@/lib/production/creative-qa";
+import { PROJECT_TIERS, type ProjectTier } from "@/lib/production/catalog";
 
 const serviceUrl = process.env.RENDER_SERVICE_URL || "http://127.0.0.1:4100";
 const secret = process.env.RENDER_SERVICE_SECRET || "";
@@ -27,6 +29,21 @@ type ServiceStatus = {
   r2Key?: string;
   checksum?: string;
   durationMs?: number;
+  qa?: {
+    checks: {
+      playableVideo: boolean;
+      dimensionsMatch: boolean;
+      frameRateMatch: boolean;
+      durationMatch: boolean;
+      fileSizeValid: boolean;
+    };
+    width: number;
+    height: number;
+    frameRate: number;
+    durationSeconds: number;
+    fileSizeBytes: number;
+    hasAudio: boolean;
+  };
   error?: string;
   errorCode?: string;
 };
@@ -47,6 +64,28 @@ const TimelineManifestSchema = z.object({
     endMs: z.number().int().positive(),
     text: z.string().min(1).max(2_000),
   })).max(300).default([]),
+  creative: z.object({
+    musicTrack: z.object({
+      id: z.string(),
+      r2Key: z.string(),
+      licenseId: z.string(),
+      volume: z.number().min(0).max(1),
+    }).nullable().optional(),
+    bRoll: z.array(z.object({
+      outputStartMs: z.number().int().min(0),
+      durationMs: z.number().int().positive(),
+      r2Key: z.string(),
+      source: z.enum(["stock", "generated"]),
+      licenseId: z.string().optional(),
+      prompt: z.string(),
+    })).default([]),
+    brand: z.object({
+      name: z.string().nullable().optional(),
+      primaryColor: z.string(),
+      secondaryColor: z.string(),
+      rules: z.string().nullable().optional(),
+    }).optional(),
+  }).optional(),
 });
 
 function timelineOutputDimensions(aspectRatio: string, resolution: string) {
@@ -86,7 +125,7 @@ async function processRenderJob(job: Job<JobData>) {
       errorMessage: null,
     },
   });
-  const [render, order, asset, timelineRecord] = await Promise.all([
+  const [render, order, asset, timelineRecord, briefRecord] = await Promise.all([
     prisma.render.findUnique({ where: { id: renderId } }),
     prisma.order.findUnique({ where: { id: orderId } }),
     prisma.uploadedAsset.findFirst({
@@ -96,6 +135,10 @@ async function processRenderJob(job: Job<JobData>) {
     prisma.timelineManifest.findFirst({
       where: { orderId },
       orderBy: { createdAt: "desc" },
+    }),
+    prisma.editBrief.findFirst({
+      where: { orderId, status: "approved" },
+      orderBy: { version: "desc" },
     }),
   ]);
   if (!render || !order || !asset)
@@ -123,7 +166,17 @@ async function processRenderJob(job: Job<JobData>) {
   const timeline = editor360
     ? null
     : TimelineManifestSchema.parse(timelineRecord?.manifest);
-  const fps = parseFps(order.frameRate);
+  const [musicUrl, bRoll] = timeline
+    ? await Promise.all([
+        timeline.creative?.musicTrack?.r2Key
+          ? getSignedDownloadUrl(timeline.creative.musicTrack.r2Key, 60 * 60)
+          : Promise.resolve(null),
+        Promise.all((timeline.creative?.bRoll || []).map(async (item) => ({
+          ...item,
+          videoUrl: await getSignedDownloadUrl(item.r2Key, 60 * 60),
+        }))),
+      ])
+    : [null, []];
   const timelineDurationMs = timeline
     ? timeline.plan.segments.reduce(
         (total, segment) => total + segment.sourceEndMs - segment.sourceStartMs,
@@ -134,7 +187,7 @@ async function processRenderJob(job: Job<JobData>) {
     videoUrl,
     title: order.purpose || "",
     subtitle: order.customerCompany || "",
-    accentColor: "#d4a017",
+    accentColor: timeline?.creative?.brand?.primaryColor || "#d4a017",
     showLowerThird: !!order.purpose,
     zoomStart: 1,
     zoomEnd: 1.04,
@@ -146,15 +199,26 @@ async function processRenderJob(job: Job<JobData>) {
           captionStyle: order.captionStyle || "minimal",
           style: order.visualStyle || "cinematic",
           colorGrade: order.colorGrade || "natural",
+          music: musicUrl && timeline.creative?.musicTrack ? {
+            url: musicUrl,
+            volume: timeline.creative.musicTrack.volume,
+          } : null,
+          bRoll: bRoll.map((item) => ({
+            videoUrl: item.videoUrl,
+            startMs: item.outputStartMs,
+            durationMs: item.durationMs,
+          })),
+          brand: timeline.creative?.brand || null,
         }
       : {}),
   };
   const compositionId = editor360
     ? styleToComposition(order.visualStyle || "cinematic")
     : "timeline";
+  const renderFps = parseFps(render.frameRate || order.frameRate);
   const dimensions = editor360
     ? outputDimensions(editor360.outputAspectRatio, order.resolution)
-    : timelineOutputDimensions(order.aspectRatio || "16:9", order.resolution);
+    : timelineOutputDimensions(render.aspectRatio || order.aspectRatio || "16:9", render.resolution || order.resolution);
   const response = await fetch(`${serviceUrl}/render`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-render-secret": secret },
@@ -163,13 +227,13 @@ async function processRenderJob(job: Job<JobData>) {
       compositionId,
       inputProps: props,
       outputKey: render.outputR2Key,
-      fps,
+      fps: renderFps,
       width: dimensions.width,
       height: dimensions.height,
       concurrency: 2,
       ...(timeline && timelineDurationMs
         ? {
-            durationInFrames: Math.max(1, Math.ceil((timelineDurationMs / 1_000) * fps)),
+            durationInFrames: Math.max(1, Math.ceil((timelineDurationMs / 1_000) * renderFps)),
             processing: {
               kind: "timeline",
               sourceUrl: videoUrl,
@@ -240,6 +304,8 @@ async function processRenderJob(job: Job<JobData>) {
       throw new Error(
         "Renderer reported success but the output object is missing or empty",
       );
+    if (!status.qa || Object.values(status.qa.checks).some((passed) => !passed))
+      throw new Error("Renderer reported success without passing technical media QA");
     const actualCredits = reservationId ? render.reservedCredits : 0;
     if (reservationId) await consumeReservation(reservationId, actualCredits);
     const renderDurationSeconds = Math.max(
@@ -249,6 +315,40 @@ async function processRenderJob(job: Job<JobData>) {
     const estimatedRenderCostUsd =
       (renderDurationSeconds / 3_600) *
       Number(process.env.SELF_HOSTED_RENDER_USD_PER_HOUR || 0.35);
+    const tier = order.package as ProjectTier;
+    const creativeQa = tier === "basic"
+      ? null
+      : await reviewCreativeOutput({
+          orderId,
+          r2Key: status.r2Key,
+          brief: (briefRecord?.structuredBrief && typeof briefRecord.structuredBrief === "object"
+            ? briefRecord.structuredBrief
+            : {}) as Record<string, unknown>,
+          timeline: (timelineRecord?.manifest && typeof timelineRecord.manifest === "object"
+            ? timelineRecord.manifest
+            : {}) as Record<string, unknown>,
+        });
+    const creativePassed = !creativeQa || (creativeQa.overallScore >= 70 && !creativeQa.issues.some((issue) => issue.severity === "critical"));
+    const renderGroupPrefix = render.idempotencyKey
+      ? `${render.idempotencyKey.split(":").slice(0, -1).join(":")}:`
+      : null;
+    const succeededVariants = await prisma.render.count({
+      where: {
+        orderId,
+        renderType: render.renderType,
+        status: "SUCCEEDED",
+        id: { not: renderId },
+        ...(renderGroupPrefix ? { idempotencyKey: { startsWith: renderGroupPrefix } } : {}),
+      },
+    });
+    const allVariantsComplete = succeededVariants + 1 >= PROJECT_TIERS[tier].outputVariants;
+    const requiresHuman = order.manualReviewRequired || tier === "premium" || !creativePassed || Boolean(creativeQa?.requiresHuman);
+    const approvalRequired = !creativePassed || (requiresHuman && !order.adminApproved);
+    const nextOrderStatus = !allVariantsComplete
+      ? render.renderType === "final" ? "FINAL_RENDERING" : "RENDERING"
+      : approvalRequired
+        ? "PRODUCTION_REVIEW_REQUIRED"
+        : render.renderType === "final" ? "DELIVERED" : "DRAFT_REVIEW";
     await prisma.$transaction([
       prisma.renderAttempt.update({
         where: { id: attempt.id },
@@ -276,11 +376,9 @@ async function processRenderJob(job: Job<JobData>) {
       prisma.order.update({
         where: { id: orderId },
         data: {
-          status:
-            order.manualReviewRequired && !order.adminApproved
-              ? "PRODUCTION_REVIEW_REQUIRED"
-              : "DRAFT_REVIEW",
+          status: nextOrderStatus,
           actualCredits,
+          manualReviewRequired: requiresHuman,
         },
       }),
       prisma.qualityCheck.upsert({
@@ -289,25 +387,42 @@ async function processRenderJob(job: Job<JobData>) {
           orderId,
           renderId,
           qaType: render.renderType,
-          status: "passed",
+          status: creativePassed ? "passed" : "review_required",
           checks: {
             outputExists: true,
             outputNonEmpty: true,
             checksumPresent: Boolean(status.checksum),
+            ...status.qa.checks,
+            width: status.qa.width,
+            height: status.qa.height,
+            frameRate: status.qa.frameRate,
+            durationSeconds: status.qa.durationSeconds,
+            fileSizeBytes: status.qa.fileSizeBytes,
+            hasAudio: status.qa.hasAudio,
+            creativeQa,
           },
-          technicalScore: status.checksum ? 100 : 90,
-          creativeScore: null,
-          requiresHuman: order.manualReviewRequired,
+          technicalScore: status.checksum ? 100 : 95,
+          creativeScore: creativeQa?.overallScore ?? null,
+          requiresHuman,
         },
         update: {
-          status: "passed",
+          status: creativePassed ? "passed" : "review_required",
           checks: {
             outputExists: true,
             outputNonEmpty: true,
             checksumPresent: Boolean(status.checksum),
+            ...status.qa.checks,
+            width: status.qa.width,
+            height: status.qa.height,
+            frameRate: status.qa.frameRate,
+            durationSeconds: status.qa.durationSeconds,
+            fileSizeBytes: status.qa.fileSizeBytes,
+            hasAudio: status.qa.hasAudio,
+            creativeQa,
           },
-          technicalScore: status.checksum ? 100 : 90,
-          requiresHuman: order.manualReviewRequired,
+          technicalScore: status.checksum ? 100 : 95,
+          creativeScore: creativeQa?.overallScore ?? null,
+          requiresHuman,
           completedAt: new Date(),
         },
       }),
@@ -336,6 +451,21 @@ async function processRenderJob(job: Job<JobData>) {
         },
       }),
     ]);
+    if (allVariantsComplete && render.renderType === "final" && nextOrderStatus === "DELIVERED") {
+      await prisma.invoice.updateMany({ where: { orderId }, data: { deliveryStatus: "delivered" } });
+    }
+    if (allVariantsComplete && approvalRequired) {
+      const openReview = await prisma.reviewTask.findFirst({ where: { orderId, status: "OPEN" } });
+      if (!openReview) {
+        await prisma.reviewTask.create({
+          data: {
+            orderId,
+            reason: creativePassed ? "Premium or risk-based human QA is required before delivery" : `Creative QA requires correction: ${creativeQa?.issues.map((issue) => issue.message).join("; ").slice(0, 1_500)}`,
+            riskScore: creativePassed ? 50 : 80,
+          },
+        });
+      }
+    }
     await recalculateOrderProfit(orderId).catch((error) =>
       console.error(
         `[accounting] Profit calculation failed for ${orderId}`,
@@ -430,7 +560,7 @@ export function startWorker() {
                 userId: failedOrder.userId,
                 type: "RENDER_DELAYED",
                 title: "Your render needs a manual check",
-                body: "We could not complete the automatic render and our team has been alerted. Your reserved credits were released.",
+                body: "We could not complete the automatic render and our team has been alerted. Your payment remains attached to the project while we correct the failure.",
                 url: `/en/order/${job.data.orderId}`,
               }),
             ]

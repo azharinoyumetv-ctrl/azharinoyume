@@ -19,7 +19,7 @@ const LOCALES = [
   { code: "zh-TW", label: "繁體中文", flag: "🇹🇼" },
 ];
 
-export default function Navbar() {
+export default function Navbar({ show360 = false }: { show360?: boolean }) {
   const t = useTranslations("nav");
   const locale = useLocale();
   const pathname = usePathname();
@@ -72,7 +72,7 @@ export default function Navbar() {
   const navLinks = [
     { href: "/packages", label: t("packages") },
     { href: "/how-it-works", label: t("howItWorks") },
-    { href: "/360-editor", label: "360 Studio" },
+    ...(show360 ? [{ href: "/360-editor", label: "360 Studio" }] : []),
     { href: "/style-gallery", label: t("styleGallery") },
     { href: "/testimonials", label: t("testimonials") },
     { href: "/faq", label: t("faq") },

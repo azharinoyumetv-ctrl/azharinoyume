@@ -16,8 +16,8 @@ export default async function OrderStatusPage(props: { params: Promise<{ orderId
     where: { id: params.orderId, ...(session.user.role === "admin" ? {} : { userId: session.user.id }) },
     include: {
       invoices: { orderBy: { createdAt: "desc" }, take: 1 },
-      deliveryLinks: { orderBy: { createdAt: "desc" }, take: 1 },
-      renders: { orderBy: { id: "desc" }, take: 1 },
+      deliveryLinks: { orderBy: { createdAt: "desc" } },
+      renders: { where: { status: "SUCCEEDED" }, orderBy: { createdAt: "desc" } },
       revisions: { orderBy: { revisionNumber: "asc" } },
     },
   }), getPaymentProviderSettings()]);

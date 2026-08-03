@@ -4,14 +4,18 @@ import { prisma } from "@/lib/prisma";
 import InteractiveStyleGrid from "@/components/marketing/InteractiveStyleGrid";
 import { Reveal } from "@/components/marketing/MotionExperience";
 import { STYLE_DIRECTIONS } from "@/lib/production/catalog";
+import { isFeatureEnabled } from "@/lib/features";
 
 export default async function StyleGalleryPage() {
-  const testimonials = await prisma.testimonial.findMany({
-    where: { status: "approved", published: true, consentShowVideo: true },
-    orderBy: { createdAt: "desc" },
-    take: 6,
-    include: { user: { select: { name: true } } },
-  });
+  const [testimonials, show360] = await Promise.all([
+    prisma.testimonial.findMany({
+      where: { status: "approved", published: true, consentShowVideo: true },
+      orderBy: { createdAt: "desc" },
+      take: 6,
+      include: { user: { select: { name: true } } },
+    }),
+    isFeatureEnabled("r_and_d_360_video"),
+  ]);
 
   return (
     <main className="min-h-[calc(100svh-4rem)] overflow-hidden bg-[#07080a] text-white">
@@ -38,7 +42,7 @@ export default async function StyleGalleryPage() {
             <div className="grid grid-cols-3 gap-px overflow-hidden rounded-2xl border border-white/[.07] bg-white/[.07]">
               <Metric value="6" label="directions" />
               <Metric value="4K" label="delivery" />
-              <Metric value="360°" label="reframe" />
+              <Metric value={show360 ? "360°" : "8"} label={show360 ? "reframe" : "languages"} />
             </div>
           </div>
         </Reveal>
@@ -46,7 +50,7 @@ export default async function StyleGalleryPage() {
 
       <section className="px-4 py-10 sm:px-6 sm:py-14 lg:px-8 lg:py-16">
         <div className="mx-auto max-w-7xl">
-          <InteractiveStyleGrid styles={STYLE_DIRECTIONS.map((style) => ({ ...style, meta: [...style.meta] }))} />
+          <InteractiveStyleGrid show360={show360} styles={STYLE_DIRECTIONS.map((style) => ({ ...style, meta: [...style.meta] }))} />
         </div>
       </section>
 
@@ -109,8 +113,7 @@ export default async function StyleGalleryPage() {
               Bring the footage. Shape the point of view.
             </h2>
             <p className="mt-4 max-w-2xl text-sm leading-6 text-white/45 sm:text-base">
-              Standard footage or full spherical capture—the project starts with
-              the way you want the audience to feel.
+              {show360 ? "Standard footage or full spherical capture—the project starts with the way you want the audience to feel." : "Every project starts with the way you want the audience to feel, then turns that direction into a production contract."}
             </p>
           </div>
           <Link

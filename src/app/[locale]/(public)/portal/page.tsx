@@ -31,7 +31,7 @@ const STATUS: Record<string, { label: string; tone: "neutral" | "gold" | "blue" 
   DRAFT_RENDERING: { label: "Draft rendering", tone: "blue", progress: 64, message: "The first review draft is rendering" },
   QUALITY_CHECK: { label: "Quality check", tone: "gold", progress: 72, message: "Technical and brief-conformity checks are running" },
   PRODUCTION_REVIEW_REQUIRED: { label: "Operator review", tone: "red", progress: 72, message: "The project is paused for a human decision" },
-  QUEUED: { label: "Queued", tone: "gold", progress: 24, message: "Credits reserved and project queued" },
+  QUEUED: { label: "Queued", tone: "gold", progress: 24, message: "Your paid project is queued for production" },
   RENDERING: { label: "Rendering", tone: "blue", progress: 56, message: "AI edit is being assembled" },
   DRAFT_REVIEW: { label: "Review ready", tone: "violet", progress: 78, message: "Your draft is ready for feedback" },
   REVISION_REQUESTED: { label: "Revising", tone: "blue", progress: 84, message: "Requested changes are in progress" },
