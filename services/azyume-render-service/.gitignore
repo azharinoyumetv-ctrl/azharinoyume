@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+.npm-cache/
+
+# Build output
+dist/
+
+# Env — NEVER commit secrets
+.env
+.env.local
+
+# Remotion
+out/
+.remotion/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor
+.vscode/
+.idea/
+*.swp

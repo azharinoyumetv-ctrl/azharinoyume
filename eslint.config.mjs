@@ -15,5 +15,6 @@ export default defineConfig([
     "src/generated/**",
     "node_modules/**",
     "coverage/**",
+    "services/azyume-render-service/**",
   ]),
 ]);
